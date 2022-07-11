@@ -33,7 +33,12 @@ This repository contains the following directories:
   - `references`: directory with reference papers, notes and a work plan.
   - `src`: the main source directory
   - `samples`: contains sample code from previous projects that can be taken as reference
+  - `manuals`: contains installation manuals and miscellaneous documentation
 
 # Conventions 
 
 Formatting guidelines and code contribution procedures are to be found in RulesAndProcedures.md
+
+# Development environment set-up
+
+Please peruse `manuals/SetUp.md`.
