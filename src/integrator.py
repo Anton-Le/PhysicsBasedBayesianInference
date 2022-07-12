@@ -10,9 +10,8 @@ class Integrator():
         raise NotImplementedError('Method not defined.')
 
 
-    def __init__(self, ensemble, dt, numSteps, potential, dq):
-        self.q, self.p, self.mass, self.weights = ensemble
-        self.potential = potential
+    def __init__(self, ensemble, dt, numSteps, dq):
+        self.q, self.p, self.mass, self.weights, self.potential = ensemble
         self.dq = dq
 
 
