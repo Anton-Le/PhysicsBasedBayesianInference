@@ -1,9 +1,11 @@
 import numpy as np
+from scipy.stats import norm
+from scipy.constants import k as boltzmannConst
 
 class Ensemble( ):
 
 
-    def __init__(self, numParticles, numDimensions):
+    def __init__(self, numParticles, numDimensions, potential):
         
         self.numParticles = numParticles
         self.numDimensions = numDimensions
@@ -11,6 +13,21 @@ class Ensemble( ):
         self.p = np.zeros((numDimensions, numParticles))
         self.m = np.zeros(numParticles)
         self.weights = np.zeros(numParticles)
+        self.potential = potential
+
+
+    def initialize(self, mass, temperature, q_std):
+        if len(mass) != numParticles or np.ndim != 1:
+            raise ValueError('Mass must be 1D array of length numParticles.')
+
+        self.q = norm.rvs(scale=q_std, size=(numDimensions, numParticles))
+        p_std = np.sqrt(mass * boltzmannConst * temperature)
+        self.p = norm.rvs(scale=scale, size=(numDimensions, numParticles))
+
+        self.weights = np.exp(-potential())
+
+    def __iter__(self):
+        return self.q, self.p, self.m, self.weights, self.potential
 
 
     def particle(self, particleNum):
@@ -22,32 +39,3 @@ class Ensemble( ):
 
         return self.q[:, particleNum], self.p[:, particleNum], \
         self.m[particleNum], self.weights[particleNum]
-
-## MOVE TO TEST - I DONT GET VC
-def main( ):
-    numDimensions = 4
-    numParticles = 100
-
-    ensemble1 = Ensemble(numParticles, numDimensions)
-
-    # expected output
-    qExp = np.zeros( numDimensions )
-    pExp = np.zeros( numDimensions )
-    mExp = 0
-    wExp = 0
-
-    q1, p1, m1, w1 = ensemble1.particle( 10 )
-
-    if (qExp == q1).all( ) and (pExp == p1).all( ) and (mExp == m1).all( ) and \
-        (wExp == w1).all( ):
-        print('Test 1 passed.')
-
-    try:
-        _ = ensemble1.particle(numParticles + 1)
-        print('Test 2 Failed')
-    except IndexError as error: 
-        print(error)
-        print('Test 2 Passed')
-
-if __name__ == '__main__':
-    main()
