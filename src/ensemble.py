@@ -1,11 +1,15 @@
+#!/usr/bin/env python3 
+
 import numpy as np
 from scipy.stats import norm
 from scipy.constants import k as boltzmannConst
 
 class Ensemble( ):
-    ''' Class containing particle positions and momenta, as well as weights and 
+    ''' Class containing particle positions, momenta and masses as well as weights and 
     a potential taking only position as an argument.
     '''
+    potenial = None # If None integrator runs N-body simulation, 
+                    # use potential.noPotential for free particles
 
     def __init__(self, numDimensions, numParticles, potential):
         
@@ -22,9 +26,9 @@ class Ensemble( ):
         hamiltonian = self.potential(self.q) + self.p ** 2 / (2 * self.mass)
         self.weights = np.exp(- hamiltonian / boltzmannConst * temperature)
 
-    def initialize(self, mass, temperature, q_std):
-        ''' Distribute momentum based on a thermal distribution.
-        
+    def initializeThermal(self, mass, temperature, q_std):
+        ''' Distribute momentum based on a thermal distribution and position
+        with a normal distribution.
 
         '''
         if len(mass) != self.numParticles or np.ndim(mass) != 1:
@@ -45,11 +49,14 @@ class Ensemble( ):
         
 
     def __iter__(self):
+        ''' Allows for easy unpacking of ensemble object.
+        '''
         return self.q, self.p, self.mass, self.weights, self.potential
 
 
     def particle(self, particleNum):
-# I'm not sure if brackets follow correct style here - please correct if needed        
+        ''' Return information about the particleNum th particle.
+        '''      
         if not 0 <= particleNum < self.numParticles:
 
             raise IndexError(f'Index {particleNum} out of bounds. '\

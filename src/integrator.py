@@ -1,3 +1,4 @@
+#!/usr/bin/env python3 
 
 import numpy as np
 
@@ -10,7 +11,7 @@ class Integrator():
         raise NotImplementedError('Method not defined.')
 
 
-    def __init__(self, ensemble, dt, numSteps, dq):
+    def __init__(self, ensemble, dt, numSteps, ds):
         self.q, self.p, self.mass, self.weights, self.potential = ensemble
         self.dq = dq
 

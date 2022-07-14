@@ -1,3 +1,5 @@
+#!/usr/bin/env python3 
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
@@ -54,7 +56,7 @@ def main( ):
         velocity, temperature2, constMass)
 
     ensemble2 = Ensemble(numDimensions2, numParticles2, noPotential)
-    ensemble2.initialize(mass2, temperature2, 3)
+    ensemble2.initializeThermal(mass2, temperature2, 3)
 
 
     # fig = plt.figure()
