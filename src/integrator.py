@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -119,5 +120,3 @@ class integrator_methods:
                         
 def toy_potential(x):
     return np.sin(x) + x
-
-
