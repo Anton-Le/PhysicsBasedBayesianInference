@@ -8,10 +8,13 @@ class Ensemble( ):
     ''' Class containing particle positions, momenta and masses as well as weights and 
     a potential taking only position as an argument.
     '''
-    potenial = None # If None integrator runs N-body simulation, 
+    potential = None # If None integrator runs N-body simulation, 
                     # use potential.noPotential for free particles
 
     def __init__(self, numDimensions, numParticles, potential):
+
+    # If potential = None integrator runs N-body simulation.
+
         
         self.numParticles = numParticles
         self.numDimensions = numDimensions
@@ -21,10 +24,15 @@ class Ensemble( ):
         self.weights = np.zeros(numParticles)
         self.potential = potential
 
+    def __iter__(self):
+        ''' Allows for easy unpacking of ensemble object.
+        '''
+        return self.q, self.p, self.mass, self.weights, self.potential
 
     def setWeights(self, temperature):
-        hamiltonian = self.potential(self.q) + self.p ** 2 / (2 * self.mass)
-        self.weights = np.exp(- hamiltonian / boltzmannConst * temperature)
+        kineticEnergy = np.sum((self.p ** 2 / (2 * self.mass)), axis=0)
+        hamiltonian = self.potential(self.q) + kineticEnergy
+        self.weights = np.exp(- hamiltonian / (boltzmannConst * temperature))
 
     def initializeThermal(self, mass, temperature, q_std):
         ''' Distribute momentum based on a thermal distribution and position
@@ -46,12 +54,6 @@ class Ensemble( ):
 
         # set weights
         self.setWeights(temperature)
-        
-
-    def __iter__(self):
-        ''' Allows for easy unpacking of ensemble object.
-        '''
-        return self.q, self.p, self.mass, self.weights, self.potential
 
 
     def particle(self, particleNum):
