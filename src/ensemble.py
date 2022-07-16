@@ -1,19 +1,37 @@
-#!/usr/bin/env python3 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Jul 14 2022
+@author: thomas
+
+Contains Ensemble class.
+
+"""
 
 import numpy as np
 from scipy.stats import norm
 from scipy.constants import k as boltzmannConst
 
 class Ensemble( ):
-    ''' Class containing particle positions, momenta and masses as well as weights and 
-    a potential taking only position as an argument.
-    '''
-    potential = None # If None integrator runs N-body simulation, 
-                    # use potential.noPotential for free particles
+    """
+    @description:
+        Data structure containing information of an ensemble.
+        Contains positions, momenta, masses, probabilistic weights of each
+        particle, as well as the potential function.
+    """
 
     def __init__(self, numDimensions, numParticles, potential):
-
-    # If potential = None integrator runs N-body simulation.
+        """
+        @description:
+            Initialize ensemble object
+            
+        @parameters:        
+            numDimensions (int)
+            numParticles (int)
+            potential (func): Function taking only q as argument returning array of
+            length nparticles of potentials.
+        """
+        # If potential = None integrator runs N-body simulation.
 
         
         self.numParticles = numParticles
@@ -25,20 +43,36 @@ class Ensemble( ):
         self.potential = potential
 
     def __iter__(self):
-        ''' Allows for easy unpacking of ensemble object.
+        '''
+        @description:
+            Allows for easy unpacking of ensemble object.
         '''
         return self.q, self.p, self.mass, self.weights, self.potential
 
     def setWeights(self, temperature):
+        """
+        @description:
+            Set probabilistic weights.
+        
+         @parameters:        
+            temperature (float)
+        """
         kineticEnergy = np.sum((self.p ** 2 / (2 * self.mass)), axis=0)
         hamiltonian = self.potential(self.q) + kineticEnergy
         self.weights = np.exp(- hamiltonian / (boltzmannConst * temperature))
 
     def initializeThermal(self, mass, temperature, q_std):
-        ''' Distribute momentum based on a thermal distribution and position
-        with a normal distribution.
+        """
+        @description:
+            Distribute momentum based on a thermal distribution and position
+            with a normal distribution. Also set probabilistic weights.
+        
+         @parameters:        
+            mass (ndarray): Length of numParticles
+            temperature (float)
+            q_std (float): Standard deviation in positions.
+        """
 
-        '''
         if len(mass) != self.numParticles or np.ndim(mass) != 1:
             raise ValueError('Mass must be 1D array of length numParticles.')
 
@@ -57,8 +91,12 @@ class Ensemble( ):
 
 
     def particle(self, particleNum):
-        ''' Return information about the particleNum th particle.
-        '''      
+        """
+        @description:
+            Return information about the particleNum th particle.
+         @parameters:        
+            particleNum (int): Label of particle
+        """    
         if not 0 <= particleNum < self.numParticles:
 
             raise IndexError(f'Index {particleNum} out of bounds. '\
