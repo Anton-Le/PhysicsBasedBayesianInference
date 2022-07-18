@@ -9,6 +9,7 @@ Contains Ensemble class.
 """
 
 import numpy as np
+from potential import getForce
 from scipy.stats import norm
 from scipy.constants import k as boltzmannConst
 
@@ -41,6 +42,7 @@ class Ensemble( ):
         self.mass = np.zeros(numParticles)
         self.weights = np.zeros(numParticles)
         self.potential = potential
+        self.dq = 1e-8 # for differentiation
 
     def __iter__(self):
         '''
@@ -49,12 +51,26 @@ class Ensemble( ):
         '''
         return self.q, self.p, self.mass, self.weights, self.potential
 
+    def getAccel(self):
+        """
+        @description:
+            Get acceleration at each position.
+        
+        @parameters:        
+            self.q (ndarray): numDimensions x numParticles array
+            self.mass (ndarray):
+            self.potential (func):
+            self.dq (float):
+        """
+        return getForce(self.q, self.potential, self.dq) / self.mass
+
+
     def setWeights(self, temperature):
         """
         @description:
             Set probabilistic weights.
         
-         @parameters:        
+        @parameters:        
             temperature (float)
         """
         kineticEnergy = np.sum((self.p ** 2 / (2 * self.mass)), axis=0)
