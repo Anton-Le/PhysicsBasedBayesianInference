@@ -6,7 +6,10 @@ Created on Fri Jul 15 2022
 
 @author: bruno
 """
-=======
+import sys
+  
+# setting path
+sys.path.append('../')
 
 from ensemble import Ensemble
 from integrator import integrator_methods
@@ -15,7 +18,6 @@ import numpy as np
 def harmonicPotential(q):
     return q
 
-########################
 def main():
     # integrator setup
     finalTime = 1
@@ -41,7 +43,7 @@ def main():
         
 if __name__ == '__main__':
     p, q = main()
-=======
+
 def freeParticleAnalytic(ensemble, numSteps, dt):
 	time = numSteps * dt
 	q = ensemble.q * time * ensemble.p / ensemble.mass

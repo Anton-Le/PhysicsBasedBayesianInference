@@ -8,7 +8,6 @@ File contain potentials & function to calculate n-body gravitational force.
 
 """
 
-from ensemble import Ensemble
 import numpy as np
 from scipy.constants import G as gravConst
 from numbers import Real # check if variable is number
@@ -23,13 +22,9 @@ def harmonicPotentialND(q, springConsts):
         q (ndarray): numDimensions x numParticles array of positions
         springConsts (ndarray): numDimensions array of spring constants
     """
-    if q.shape[0] != len(springConsts):
-        raise ValueError('k must be 1D array corresponding with spring constant\
-            in 3 dimensions.')
-    
-    q_T = q.T
 
-    return np.sum((0.5 * springConsts * q_T ** 2), axis=1)
+    return 0.5 * np.dot(springConsts, q ** 2)
+
 
 def gravitationalPotential(r1, r2, mass1, mass2):
     """
@@ -95,6 +90,24 @@ def nBodyForce(q, mass):
     gradient = gradient.reshape(outputShape)
     return -gradient
 
+
+def getForce(q, potentialFunc, dq):
+    """
+    @description:
+        Calculate forces at each position vector.
+        
+    @parameters:        
+        q (ndarray): numDimensions x numParticles array of positions
+        potentialFunc (func):
+        dq (float): Step to evaluate derivatives
+    """
+
+    force = np.zeros_like(q)
+
+    for i in range(q.shape[1]): # for each particle
+        force[:,i] = -approx_fprime(q[:, i], potentialFunc)
+
+    return force
 
 def noPotential(q):
     return 0

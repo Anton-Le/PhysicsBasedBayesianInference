@@ -33,6 +33,7 @@ class integrator_methods:
         self.q = np.copy(ensemble.q)
         # initial momenta 
         self.p = np.copy(ensemble.p)
+        self.mass = np.copy(ensemble.mass)
         self.numParticles = ensemble.numParticles
         # step size for integrator
         self.stepSize = stepSize
@@ -44,6 +45,10 @@ class integrator_methods:
         self.potentialFunction = ensemble.potential
         # value of potential for a given configuration q
         self.potential = np.zeros_like(self.q)
+
+    def getAccel(self):
+        qFlat = q.flatten()
+        
     
     def leap_frog(self):
         """
@@ -64,7 +69,7 @@ class integrator_methods:
             
         # number of time steps consider on [initialTime, finalTime]
         for i in range(self.totalSteps):             
-            for j in range(self.numParticles):   
+            for j in range(self.numParticles):
                 # half step in leap frog
                 pMidStep = self.p[:, j] - 0.50 * self.stepSize * self.potential[:, j]
                 self.q[:, j]  = self.q[:, j] + self.stepSize * pMidStep
