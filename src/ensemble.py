@@ -69,9 +69,8 @@ class Ensemble( ):
         """
         @description:
             Set probabilistic weights.
-        
-        @parameters:        
-            temperature (float)
+         @parameters:        
+            temperature (float):tests f
         """
         kineticEnergy = np.sum((self.p ** 2 / (2 * self.mass)), axis=0)
         hamiltonian = self.potential(self.q) + kineticEnergy

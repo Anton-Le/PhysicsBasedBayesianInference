@@ -22,10 +22,9 @@ def harmonicPotentialND(q, springConsts):
         q (ndarray): numDimensions x numParticles array of positions
         springConsts (ndarray): numDimensions array of spring constants
     """
-    
-    potential = 0.5 * np.dot(springConsts, q ** 2)
 
-    return potential
+    return 0.5 * np.dot(springConsts, q ** 2)
+
 
 def gravitationalPotential(r1, r2, mass1, mass2):
     """
@@ -90,6 +89,7 @@ def nBodyForce(q, mass):
         mass, outputShape)
     gradient = gradient.reshape(outputShape)
     return -gradient
+
 
 def getForce(q, potentialFunc, dq):
     """
