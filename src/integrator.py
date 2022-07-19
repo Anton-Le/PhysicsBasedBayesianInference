@@ -12,8 +12,10 @@ momenta and positions for a N-particle system
 
 import numpy as np
 from ensemble import Ensemble
+from scipy.optimize import approx_fprime
+from autograd import grad, jacobian
    
-class integrator_methods:       
+class integrator_methods:	
     """
     @description:
         This class contains functions to compute the positions 
@@ -22,28 +24,57 @@ class integrator_methods:
         We do not store the solution at each time step, but the solution at final simulation
         time. 
         We assume that the particles are described by momentum and position vectors in D dimensions.
+        Furthemore, we assume that we have the gradient of the interaction to work with and pass to
+        either of the integrators
         
     @parameters:        
-        samples (numpy array): train/test data points
-        labels (numpy array): contains the samples/data labels
+        ensemble : data strucuture containing all relevant information about our particles and initialize 
+                   positions and momenta
+        stepSize : time step to use for numerical solution
+        finalTime : final simulation time
+        gradientCompute: default is False since we assume we are given the gradient of the potential function
     """
     
-    def __init__(self, ensemble, stepSize, finalTime):
+    def __init__(self, ensemble, stepSize, finalTime, gradientCompute = False):
+        # physical quantities data
         # initial positions 
         self.q = np.copy(ensemble.q)
         # initial momenta 
         self.p = np.copy(ensemble.p)
+        self.acceleration = np.zeros_like(self.q)
+        self.mass = ensemble.mass
         self.numParticles = ensemble.numParticles
+        if False == gradientCompute:
+            self.interaction = ensemble.potential
+            self.computeGradient = False
+        else:
+            self.interaction = ensemble.potential 
+            self.computeGradient = True
+        self.gradientPotential = np.zeros_like(self.q)
+        
+        # matrix to store forces on each particle for a given configuration q
+        self.force = np.zeros_like(self.q)
+        
+        # numerical integrator data
         # step size for integrator
         self.stepSize = stepSize
         # final simulation time
-        self.finalTime = finalTime        
+        self.finalTime = finalTime         
+        # total steps in numerical solution
         self.totalSteps = int(self.finalTime/self.stepSize)
         # integrator to use
         self.method = None        
-        self.potentialFunction = ensemble.potential
-        # value of potential for a given configuration q
-        self.potential = np.zeros_like(self.q)
+    
+    # DO NOT call this function yet.
+    def compute_gradient(self):
+    	"""
+		@description:
+		    This function is meant to compute the gradient of the potential interaction if not given
+		"""
+        eps = np.sqrt(np.finfo(float).eps)
+        for i in range(self.numParticles):
+            self.gradientPotential[:, i] = approx_fprime(self.q[: i], self.interaction, [eps, np.sqrt(200) * eps], self.mass)
+    
     
     def leap_frog(self):
         """
@@ -58,23 +89,25 @@ class integrator_methods:
             stepSize (float): step size for numerical integrator
             finalTime (float): final simulation time
         """
-        # first value of potential
-        for i in range(self.numParticles):            
-            self.potential[:, i] = self.potentialFunction(self.q[:, i]) 
+        if True == self.computeGradient:
+            pass
             
+        # first value of force
+        for i in range(self.numParticles):            
+            self.force[:, i] = - self.interaction(self.q[:, i]) 
+   
         # number of time steps consider on [initialTime, finalTime]
         for i in range(self.totalSteps):             
             for j in range(self.numParticles):   
                 # half step in leap frog
-                pMidStep = self.p[:, j] - 0.50 * self.stepSize * self.potential[:, j]
+                pMidStep = self.p[:, j] + 0.50 * self.stepSize * self.force[:, j]
                 self.q[:, j]  = self.q[:, j] + self.stepSize * pMidStep
-                self.p[:, j]  = pMidStep - 0.50 * self.stepSize * self.potential[:, j]  
-                # update potential
-                self.potential[:, j]  = self.potentialFunction(self.q[:, j])
-            
-        # return postion and momenta of all particles at finalTime
-        return self.q, self.p
-    
+                # update force
+                self.force[:, j]  = - self.interaction(self.q[:, j])
+                self.p[:, j]  = pMidStep + 0.50 * self.stepSize * self.force[:, j]                  
+        
+        self.acceleration = self.force / self.mass
+        
     def stormer_verlet(self):
         """
         @description:
@@ -88,35 +121,35 @@ class integrator_methods:
             stepSize (float): step size for numerical integrator
             finalTime (float): final simulation time
         """
-        # first value of potential
+        # first value of force
         for i in range(self.numParticles):            
-            self.potential[:, i] = self.potentialFunction(self.q[:, i]) 
+            self.force[:, i] = - self.interaction(self.q[:, i]) 
         
         # number of time steps consider on [initialTime, finalTime]
         for i in range(self.totalSteps):
             for j in range(self.numParticles):
-                self.q[:, j] = self.q[:, j] + self.stepSize * ( self.p[:, j] -  0.50 * self.stepSize * self.potential[:, j] )            
-                newPotential = self.potentialFunction(self.q[:, j])
-                self.p[:, j] = self.q[:, j] - 0.50 * self.stepSize * ( self.potential[:, j] + newPotential)
-                self.potential[:, j] = newPotential         
+                self.q[:, j] = self.q[:, j] + self.stepSize * ( self.p[:, j] +  0.50 * self.stepSize * self.force[:, j] )            
+                newforce = - self.interaction(self.q[:, j])
+                self.p[:, j] = self.p[:, j] + 0.50 * self.stepSize * ( self.force[:, j] + newforce)
+                self.force[:, j] = newforce         
         
-        # return postion and momenta of all particles at finalTime
-        return self.q, self.p
-    
+        self.acceleration = self.force / self.mass
+
     def numerical_solution(self, method = 'LP'):
         self.method = method
         if self.method == 'LP':
             # solve trajectories for each particle
             self.leap_frog()
-            # return matrix containing numerical solutions for all particles
-            return self.q, self.p
         
         if self.method == 'SV':
             self.stormer_verlet()
-            return self.q, self.p
         
         else:
             raise Exception('Choose a valid numerical integrator')
-                        
+        
+    def get_quantities(self):
+        return (self.q, self.p, self.force, self.acceleration)
+
+     
 def toy_potential(x):
     return np.sin(x) + x
