@@ -41,8 +41,10 @@ class integrator_methods:
         self.q = np.copy(ensemble.q)
         # initial momenta 
         self.p = np.copy(ensemble.p)
+
         self.acceleration = np.zeros_like(self.q)
         self.mass = ensemble.mass
+
         self.numParticles = ensemble.numParticles
         if False == gradientCompute:
             self.interaction = ensemble.potential
@@ -64,17 +66,18 @@ class integrator_methods:
         self.totalSteps = int(self.finalTime/self.stepSize)
         # integrator to use
         self.method = None        
+
     
     # DO NOT call this function yet.
     def compute_gradient(self):
-    	"""
+    """
 		@description:
 		    This function is meant to compute the gradient of the potential interaction if not given
 		"""
         eps = np.sqrt(np.finfo(float).eps)
         for i in range(self.numParticles):
             self.gradientPotential[:, i] = approx_fprime(self.q[: i], self.interaction, [eps, np.sqrt(200) * eps], self.mass)
-    
+   
     
     def leap_frog(self):
         """
@@ -98,7 +101,7 @@ class integrator_methods:
    
         # number of time steps consider on [initialTime, finalTime]
         for i in range(self.totalSteps):             
-            for j in range(self.numParticles):   
+            for j in range(self.numParticles):
                 # half step in leap frog
                 pMidStep = self.p[:, j] + 0.50 * self.stepSize * self.force[:, j]
                 self.q[:, j]  = self.q[:, j] + self.stepSize * pMidStep
