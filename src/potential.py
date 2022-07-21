@@ -17,21 +17,50 @@ def harmonicPotentialND(q, springConsts):
     """
     @description:
         Returns harmonic potential at points given by q.
-        
-    @parameters:        
+
+    @parameters:
         q (ndarray): numDimensions x numParticles array of positions
         springConsts (ndarray): numDimensions array of spring constants
     """
 
     return 0.5 * np.dot(springConsts, q ** 2)
 
+def getAccelNBody(q, mass, i):
+    """
+    @description:
+        Calculate acceleration of i th particle in N-body system.
+
+    @parameters:
+        q (ndarray): numDimensions x numParticles array of positions
+        i (int): index
+        mass (ndarray): numParticles array of masses
+    """
+    q = np.copy(q)
+    mass = np.copy(mass)
+    iQ = q[:, [i]]
+    iMass = mass[i]
+    # remove i th particle
+    qReduced = np.delete(q, i, axis=1)
+
+    massReduced = np.delete(mass, i)
+
+    r = qReduced - iQ
+
+    denom = np.linalg.norm(r, axis=0) ** 3
+
+
+    accelArray = gravConst * massReduced * r / denom
+
+    return np.sum(accelArray, axis=1)
+
+
 
 def gravitationalPotential(r1, r2, mass1, mass2):
     """
     @description:
         Returns potential between two masses.
-        
-    @parameters:        
+
+    @parameters:
         r1 (ndarray): Position vector of first mass.
         r2 (ndarray): Position vector of second mass.
         mass1 (ndarray): First mass
@@ -42,12 +71,13 @@ def gravitationalPotential(r1, r2, mass1, mass2):
     return gravConst * mass1 * mass2 / distance
 
 
+
 def nBodyPotential(q, mass, shape=None):
     """
     @description:
         Calculate n body potential for gravitational force.
-        
-    @parameters:        
+
+    @parameters:
         q (ndarray): numDimensions x numParticles array of positions
         mass (ndarray): numParticles array of masses
         shape (array-like): original shape of q in case q is 1D array.
@@ -66,7 +96,7 @@ def nBodyPotential(q, mass, shape=None):
         for particleNum_j in range(remainingParticles):
 
             potential += gravitationalPotential(
-                q[:, particleNum_i], 
+                q[:, particleNum_i],
                 q[:, countedParticles + particleNum_j],
                 mass[particleNum_i],
                 mass[countedParticles + particleNum_j]
@@ -78,25 +108,25 @@ def nBodyForce(q, mass):
     """
     @description:
         Calculate n body potential for gravitational force.
-        
-    @parameters:        
+
+    @parameters:
         q (ndarray): numDimensions x numParticles array of positions
         mass (ndarray): numParticles array of masses
     """
 
     outputShape = q.shape
-    gradient = approx_fprime(np.ravel(q), nBodyPotential, 1.49e-08, 
+    gradient = approx_fprime(np.ravel(q), nBodyPotential, 1.49e-08,
         mass, outputShape)
     gradient = gradient.reshape(outputShape)
     return -gradient
 
 
-def getForce(q, potentialFunc, dq):
+def getForceArray(q, potentialFunc, dq):
     """
     @description:
         Calculate forces at each position vector.
-        
-    @parameters:        
+
+    @parameters:
         q (ndarray): numDimensions x numParticles array of positions
         potentialFunc (func):
         dq (float): Step to evaluate derivatives
@@ -105,7 +135,7 @@ def getForce(q, potentialFunc, dq):
     force = np.zeros_like(q)
 
     for i in range(q.shape[1]): # for each particle
-        force[:,i] = -approx_fprime(q[:, i], potentialFunc)
+        force[:,i] = -approx_fprime(q[:, i], potentialFunc, 1e-8)
 
     return force
 
