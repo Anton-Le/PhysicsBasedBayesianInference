@@ -3,6 +3,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Jul 14 2022
+
 @author: bruno, thomas
 
 file containing functions to compute the numerical solution of
@@ -108,8 +109,6 @@ class Leapfrog(Integrator):
             finalTime (float): final simulation time
         """
 
-
-
         for i in range(self.numParticles):
             currentAccel = self.getAccel(i)
             # number of time steps consider on [initialTime, finalTime]
@@ -156,8 +155,3 @@ class StormerVerlet(Integrator):
             self.p[:, i] = self.v[:, i] * self.mass[i]
         # return postion and momenta of all particles at finalTime
         return (self.q, self.p)
-
-
-
-def toy_potential(x):
-    return np.sin(x) + x

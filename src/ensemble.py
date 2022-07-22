@@ -13,6 +13,7 @@ from scipy.stats import norm
 from scipy.constants import k as boltzmannConst
 from potential import nBodyPotential
 
+
 class Ensemble( ):
     """
     @description:
@@ -41,6 +42,7 @@ class Ensemble( ):
         self.p = np.zeros((numDimensions, numParticles))
         self.mass = np.zeros(numParticles)
         self.weights = np.zeros(numParticles)
+
         if potential:
             self.potential = potential
             self.nBody = False
@@ -56,7 +58,7 @@ class Ensemble( ):
         '''
         return self.q, self.p, self.mass, self.weights, self.potential
 
-
+      
     def setWeights(self, temperature):
         """
         @description:
@@ -67,6 +69,7 @@ class Ensemble( ):
         kineticEnergy = np.sum((self.p ** 2 / (2 * self.mass)), axis=0)
         hamiltonian = self.potential(self.q) + kineticEnergy
         self.weights = np.exp(- hamiltonian / (boltzmannConst * temperature))
+
 
     def initializeThermal(self, mass, temperature, qStd):
         """
