@@ -13,7 +13,7 @@ sys.path.append('../')
 
 
 from ensemble import Ensemble
-from integrator2 import Leapfrog, StormerVerlet
+from integrator import Leapfrog, StormerVerlet
 import numpy as np
 import matplotlib.pyplot as plt 
 from mpl_toolkits import mplot3d
@@ -79,5 +79,6 @@ for particleNum in range(numParticles):
 	print(x, y, z)
 	ax.plot3D(x, y, z)
 
+fig.savefig(f'{method}SolarSystem.png')
 plt.show()
 

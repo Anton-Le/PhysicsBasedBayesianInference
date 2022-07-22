@@ -12,7 +12,7 @@ import sys
 sys.path.append('../')
 
 from ensemble import Ensemble
-from integrator2 import Leapfrog, StormerVerlet
+from integrator import Leapfrog, StormerVerlet
 from potential import harmonicPotentialND
 import numpy as np
 import matplotlib.pyplot as plt 
