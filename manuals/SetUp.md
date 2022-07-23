@@ -79,7 +79,102 @@ In case JAX has been installed for the CPU only NumPyro can be installed with CP
 
 ### MPI
 
-tbd. (assuming a system-wide installation exists)
+Installation manual for MVAPICH2. 
+
+#### Step 1: Configuration
+Requires automake >= 1.15, libtool >= 2.4.5
+Requires YACC/Bison.
+
+Set the path where MPI should be installed to:
+`export MPI_ROOT=<path to directory>`
+
+**Note**: System-wide installation (default, without a specific `--prefix`) are discouraged as they will likely interfere with whatever
+the distribution's package manager has installed.
+
+The following should work in the directory where the MVAPICH source files were extracted to:
+
+```
+./configure --prefix=$MPI_ROOT --enable-cxx --enable-fortran=yes --with-device=ch3:nemesis --enable-fast=all,O3 --enable-error-checking=runtime --enable-error-messages=generic --enable-timing=runtime --enable-g=none --enable-threads=runtime --enable-dependency-tracking --disable-rdma-cm
+```
+
+#### Step 2: Make, check and install
+
+The common trifecta of building from source:
+
+`make -j 10`
+`make check`
+
+Results should be along the lines of:
+```
+============================================================================
+Testsuite summary for MPL 0.1
+============================================================================
+# TOTAL: 1
+# PASS:  1
+# SKIP:  0
+# XFAIL: 0
+# FAIL:  0
+# XPASS: 0
+# ERROR: 0
+============================================================================
+```
+
+`make installcheck`
+
+`make install`
+
+#### Step 3: system configuration
+
+First we must make the library known system-wide on-demand. To this end crate
+a BASH script with the following contents:
+
+```
+#!/bin/bash
+
+export MPI_ROOT=<your chosen path>
+export PATH=$MPI_ROOT/bin:$PATH
+export LD_LIBRARY_PATH=$MPI_ROOT/lib64:$LD_LIBRARY_PATH
+export CPATH=$MPI_ROOT/include:$CPATH
+export MANPATH=$MPI_ROOT/share/man:$MANPATH
+
+## auxiliary environmental variables
+export MPICC=mpicc
+export MPICXX=mpicxx
+export MPIF77=mpifort
+export MPI_COMPILER=mpich3
+
+export MPI_HOME=$MPI_ROOT
+```
+
+Store the script as `MVAPICHmodule.sh` and source it to set this 
+as default MPI via:
+`source MVAPICHmodule.sh`
+
+Test via:
+`which mpicxx`
+
+This should print `$PATH/mpicxx`, e.g.:
+`/programs/libraries/bin/MVAPICH/2.3.6/bin/mpicxx`
+
+and `mpicxx --version` should list your system's default compiler as the first line,
+i.e. `g++ (SUSE Linux) 7.5.0`.
+
+#### Step 4: runtime configuration
+
+When running manually via `mpiexec -n .. <program> <options>` MPI will require a hostfile.
+On clusters this is generally supplied by the scheduler (e.g. SLURM).
+On a workstation (or a small office cluster) this can be a simple text file called, e.g., `local.node`
+and containinig only one line: `127.0.0.1:6`
+
+Here the first part is the IP address  (`127.0.0.1` for the local host) and the part after
+the colon denotes how many MPI processes (slots) can be started on the node. The number of slots is arbitrary and
+as such can be set much higher than the actuall processor count of the system. This carries with it
+the potential for oversubscription of resources and slowdown due to resource contention.
+I hence suggest setting the number of slots to the number of **physical** CPU cores, although
+using the number of **logical** CPU cores (e.g., threads) should work, too.
+
+To run an MPI program will then require the following command:
+`mpiexec -n <number of processes> -h /path/to/local.node <program name> <program options>`
 
 ### Python MPI
 
