@@ -56,12 +56,12 @@ class Integrator:
 
 
     def __init__(self, ensemble, stepSize, finalTime):
-    '''
-    @parameters:
-        ensemble (Ensemble):
-        stepSize (float):
-        finalTime (float):
-    ''''
+        '''
+        @parameters:
+            ensemble (Ensemble):
+            stepSize (float):
+            finalTime (float):
+        '''
         # initial positions
         self.q = np.copy(ensemble.q)
         # initial momenta
@@ -84,14 +84,7 @@ class Integrator:
         # save avoid expenseive numerical differentiation of nBody potential
         if ensemble.nBody:
             self.getAccel = self.getAccelNBody
-
-    
-
             
-
-
-
-
 
     def integrate(self):
         raise NotImplementedError('Integrator superclass doesn\'t specify \
@@ -161,8 +154,3 @@ class StormerVerlet(Integrator):
             self.p[:, i] = self.v[:, i] * self.mass[i]
         # return postion and momenta of all particles at finalTime
         return (self.q, self.p)
-
-
-
-def toy_potential(x):
-    return np.sin(x) + x
