@@ -13,6 +13,7 @@ from scipy.stats import norm
 from scipy.constants import k as boltzmannConst
 from potential import nBodyPotential
 
+
 class Ensemble( ):
     """
     @description:
@@ -63,6 +64,7 @@ class Ensemble( ):
             Set probabilistic weights.
          @parameters:        
             temperature (float):
+
         """
         kineticEnergy = np.sum((self.p ** 2 / (2 * self.mass)), axis=0)
         hamiltonian = self.potential(self.q) + kineticEnergy
@@ -84,7 +86,6 @@ class Ensemble( ):
             raise ValueError('Mass must be 1D array of length numParticles.')
 
         self.mass = mass
-        
         self.q = norm.rvs(scale=qStd,
             size=(self.numDimensions, self.numParticles))
         

@@ -25,6 +25,7 @@ def harmonicPotentialND(q, springConsts):
 
     return 0.5 * np.dot(springConsts, q ** 2)
 
+
 def getAccelNBody(q, mass, i):
     """
     @description:
@@ -52,13 +53,12 @@ def getAccelNBody(q, mass, i):
     return np.sum(accelArray, axis=1)
 
 
-
 def gravitationalPotential(r1, r2, mass1, mass2):
     """
     @description:
         Returns potential between two masses.
-
-    @parameters:
+        
+    @parameters:        
         r1 (ndarray): Position vector of first mass.
         r2 (ndarray): Position vector of second mass.
         mass1 (ndarray): First mass
@@ -67,7 +67,6 @@ def gravitationalPotential(r1, r2, mass1, mass2):
     r = r1 - r2
     distance = np.sqrt(np.dot(r, r))
     return gravConst * mass1 * mass2 / distance
-
 
 
 def nBodyPotential(q, mass, shape=None):
@@ -106,8 +105,8 @@ def nBodyForce(q, mass):
     """
     @description:
         Calculate n body potential for gravitational force.
-
-    @parameters:
+        
+    @parameters:        
         q (ndarray): numDimensions x numParticles array of positions
         mass (ndarray): numParticles array of masses
     """
