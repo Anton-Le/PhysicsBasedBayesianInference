@@ -94,8 +94,14 @@ the distribution's package manager has installed.
 The following should work in the directory where the MVAPICH source files were extracted to:
 
 ```
-./configure --prefix=$MPI_ROOT --enable-cxx --enable-fortran=yes --with-device=ch3:nemesis --enable-fast=all,O3 --enable-error-checking=runtime --enable-error-messages=generic --enable-timing=runtime --enable-g=none --enable-threads=runtime --enable-dependency-tracking --disable-rdma-cm
+./configure --prefix=$MPI_ROOT --enable-cxx --enable-fortran=yes --enable-fast=all,O3 --enable-error-checking=runtime --enable-error-messages=generic --enable-timing=runtime --enable-g=none --enable-threads=runtime --enable-dependency-tracking --disable-rdma-cm
 ```
+
+To disable FORTRAN support _and_ use an almost default installation use:
+```
+./configure --prefix=$MPI_ROOT --enable-cxx --enable-fast=all,O3 --enable-threads=runtime --enable-dependency-tracking --disable-rdma-cm --disable-fortran
+```
+If you recieve an error relating to infinityband, check you have libibverbs installed.
 
 #### Step 2: Make, check and install
 
