@@ -3,7 +3,7 @@ import sys
 # setting path
 sys.path.append('../')
 
-from potential import harmonicPotentialND, getForce
+from potential import harmonicPotentialND
 from ensemble import Ensemble
 import numpy as np
 
