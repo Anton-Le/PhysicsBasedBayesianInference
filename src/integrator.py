@@ -11,6 +11,8 @@ momenta and positions for a N-particle system
 """
 
 import numpy as np
+import jax.numpy as jnp
+from jax import jit, pmap
 from ensemble import Ensemble
 from scipy.optimize import approx_fprime
 from potential import getAccelNBody, nBodyPotential
@@ -24,11 +26,6 @@ class Integrator:
         interacting according to a given potential.
         We do not store the solution at each time step, but the solution at final simulation
         time.
-        We assume that the particles are described by momentum and position vectors in D dimensions.
-
-    @parameters:
-        samples (numpy array): train/test data points
-        labels (numpy array): contains the samples/data labels
     """
     def getAccel(self, i):
         """
@@ -59,6 +56,12 @@ class Integrator:
 
 
     def __init__(self, ensemble, stepSize, finalTime):
+    '''
+    @parameters:
+        ensemble (Ensemble):
+        stepSize (float):
+        finalTime (float):
+    ''''
         # initial positions
         self.q = np.copy(ensemble.q)
         # initial momenta
@@ -81,6 +84,8 @@ class Integrator:
         # save avoid expenseive numerical differentiation of nBody potential
         if ensemble.nBody:
             self.getAccel = self.getAccelNBody
+
+    
 
             
 

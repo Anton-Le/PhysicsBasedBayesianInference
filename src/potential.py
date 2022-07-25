@@ -35,13 +35,11 @@ def getAccelNBody(q, mass, i):
         i (int): index
         mass (ndarray): numParticles array of masses
     """
-    q = np.copy(q)
-    mass = np.copy(mass)
     iQ = q[:, [i]]
     iMass = mass[i]
+
     # remove i th particle
     qReduced = np.delete(q, i, axis=1)
-
     massReduced = np.delete(mass, i)
 
     r = qReduced - iQ

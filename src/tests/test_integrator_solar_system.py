@@ -42,7 +42,7 @@ ensemble1.p[:, 2] = np.array([0, 29800, 1022]) * moonMass
 
 # create integrator
 
-method = 'Leapfrog'
+method = 'Stormer-Verlet'
 stepSize = 600
 finalTime = 3600
 

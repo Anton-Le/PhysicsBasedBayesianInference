@@ -122,7 +122,7 @@ def plotError():
     ax.legend()
     
 
-    fig.savefig('qErrorVsStepSize.png')
+    # fig.savefig('qErrorVsStepSize.png')
     plt.show()
 
 
