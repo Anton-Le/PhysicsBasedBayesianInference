@@ -14,6 +14,7 @@ from ensemble import Ensemble
 from scipy.optimize import approx_fprime
 from potential import getAccelNBody, nBodyPotential
 from scipy.constants import G # for debug
+import numpy as np
 
 class Integrator:
     """
