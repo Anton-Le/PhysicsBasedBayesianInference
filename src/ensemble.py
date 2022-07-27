@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+git pull git@github.com:brunoroca260894/PhysicsBasedBayesianInference.git feature-ensembleAndIntegratorsHMC#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Jul 14 2022
@@ -12,7 +12,6 @@ import numpy as np
 from scipy.stats import norm
 from scipy.constants import k as boltzmannConst
 from potential import nBodyPotential
-
 
 class Ensemble( ):
     """
@@ -64,7 +63,6 @@ class Ensemble( ):
             Set probabilistic weights.
          @parameters:        
             temperature (float):
-
         """
         kineticEnergy = np.sum((self.p ** 2 / (2 * self.mass)), axis=0)
         hamiltonian = self.potential(self.q) + kineticEnergy
@@ -112,3 +110,4 @@ class Ensemble( ):
 
         return self.q[:, particleNum], self.p[:, particleNum], \
         self.mass[particleNum], self.weights[particleNum]
+

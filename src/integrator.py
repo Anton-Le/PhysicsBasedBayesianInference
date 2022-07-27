@@ -1,8 +1,8 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Jul 14 2022
+
 @author: bruno, thomas
 
 file containing functions to compute the numerical solution of
@@ -10,7 +10,6 @@ momenta and positions for a N-particle system
 
 """
 
-import numpy as np
 from ensemble import Ensemble
 from scipy.optimize import approx_fprime
 from potential import getAccelNBody, nBodyPotential

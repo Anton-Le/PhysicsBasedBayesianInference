@@ -17,8 +17,7 @@ def harmonicPotentialND(q, springConsts):
     """
     @description:
         Returns harmonic potential at points given by q.
-
-    @parameters:
+    @parameters:        
         q (ndarray): numDimensions x numParticles array of positions
         springConsts (ndarray): numDimensions array of spring constants
     """
@@ -72,9 +71,8 @@ def gravitationalPotential(r1, r2, mass1, mass2):
 def nBodyPotential(q, mass, shape=None):
     """
     @description:
-        Calculate n body potential for gravitational force.
-
-    @parameters:
+        Calculate n body potential for gravitational force.    
+    @parameters:        
         q (ndarray): numDimensions x numParticles array of positions
         mass (ndarray): numParticles array of masses
         shape (array-like): original shape of q in case q is 1D array.
@@ -93,7 +91,7 @@ def nBodyPotential(q, mass, shape=None):
         for particleNum_j in range(remainingParticles):
 
             potential += gravitationalPotential(
-                q[:, particleNum_i],
+                q[:, particleNum_i], 
                 q[:, countedParticles + particleNum_j],
                 mass[particleNum_i],
                 mass[countedParticles + particleNum_j]
@@ -133,6 +131,7 @@ def getForceArray(q, potentialFunc, dq):
 
     for i in range(q.shape[1]): # for each particle
         force[:,i] = -approx_fprime(q[:, i], potentialFunc, 1e-8)
+
 
     return force
 
