@@ -1,4 +1,4 @@
-git pull git@github.com:brunoroca260894/PhysicsBasedBayesianInference.git feature-ensembleAndIntegratorsHMC#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Jul 14 2022
