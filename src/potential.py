@@ -17,13 +17,39 @@ def harmonicPotentialND(q, springConsts):
     """
     @description:
         Returns harmonic potential at points given by q.
-        
     @parameters:        
         q (ndarray): numDimensions x numParticles array of positions
         springConsts (ndarray): numDimensions array of spring constants
     """
 
     return 0.5 * np.dot(springConsts, q ** 2)
+
+
+def getAccelNBody(q, mass, i):
+    """
+    @description:
+        Calculate acceleration of i th particle in N-body system.
+
+    @parameters:
+        q (ndarray): numDimensions x numParticles array of positions
+        i (int): index
+        mass (ndarray): numParticles array of masses
+    """
+    iQ = q[:, [i]]
+    iMass = mass[i]
+
+    # remove i th particle
+    qReduced = np.delete(q, i, axis=1)
+    massReduced = np.delete(mass, i)
+
+    r = qReduced - iQ
+
+    denom = np.linalg.norm(r, axis=0) ** 3
+
+
+    accelArray = gravConst * massReduced * r / denom
+
+    return np.sum(accelArray, axis=1)
 
 
 def gravitationalPotential(r1, r2, mass1, mass2):
@@ -45,8 +71,7 @@ def gravitationalPotential(r1, r2, mass1, mass2):
 def nBodyPotential(q, mass, shape=None):
     """
     @description:
-        Calculate n body potential for gravitational force.
-        
+        Calculate n body potential for gravitational force.    
     @parameters:        
         q (ndarray): numDimensions x numParticles array of positions
         mass (ndarray): numParticles array of masses
@@ -85,18 +110,18 @@ def nBodyForce(q, mass):
     """
 
     outputShape = q.shape
-    gradient = approx_fprime(np.ravel(q), nBodyPotential, 1.49e-08, 
+    gradient = approx_fprime(np.ravel(q), nBodyPotential, 1.49e-08,
         mass, outputShape)
     gradient = gradient.reshape(outputShape)
-    return gradient
+    return -gradient
 
 
-def getForce(q, potentialFunc, dq):
+def getForceArray(q, potentialFunc, dq):
     """
     @description:
         Calculate forces at each position vector.
-        
-    @parameters:        
+
+    @parameters:
         q (ndarray): numDimensions x numParticles array of positions
         potentialFunc (func):
         dq (float): Step to evaluate derivatives
@@ -105,7 +130,8 @@ def getForce(q, potentialFunc, dq):
     force = np.zeros_like(q)
 
     for i in range(q.shape[1]): # for each particle
-        force[:,i] = -approx_fprime(q[:, i], potentialFunc)
+        force[:,i] = -approx_fprime(q[:, i], potentialFunc, 1e-8)
+
 
     return force
 

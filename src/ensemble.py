@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+git pull git@github.com:brunoroca260894/PhysicsBasedBayesianInference.git feature-ensembleAndIntegratorsHMC#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Jul 14 2022
@@ -11,7 +11,7 @@ Contains Ensemble class.
 import numpy as np
 from scipy.stats import norm
 from scipy.constants import k as boltzmannConst
-#from potential import nBodyPotential
+from potential import nBodyPotential
 
 class Ensemble( ):
     """
@@ -84,7 +84,6 @@ class Ensemble( ):
             raise ValueError('Mass must be 1D array of length numParticles.')
 
         self.mass = mass
-        
         self.q = norm.rvs(scale=qStd,
             size=(self.numDimensions, self.numParticles))
         
@@ -111,3 +110,4 @@ class Ensemble( ):
 
         return self.q[:, particleNum], self.p[:, particleNum], \
         self.mass[particleNum], self.weights[particleNum]
+
