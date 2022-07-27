@@ -9,9 +9,10 @@ Contains Ensemble class.
 """
 
 import numpy as np
-from potential import getForce
 from scipy.stats import norm
 from scipy.constants import k as boltzmannConst
+from potential import nBodyPotential
+
 
 class Ensemble( ):
     """
@@ -41,7 +42,12 @@ class Ensemble( ):
         self.p = np.zeros((numDimensions, numParticles))
         self.mass = np.zeros(numParticles)
         self.weights = np.zeros(numParticles)
-        self.potential = potential
+        if potential:
+            self.potential = potential
+            self.nBody = False
+        else:
+            self.potential = lambda q: nBodyPotential(q, self.mass)
+            self.nBody = True
         self.dq = 1e-8 # for differentiation
 
     def __iter__(self):
@@ -51,32 +57,20 @@ class Ensemble( ):
         '''
         return self.q, self.p, self.mass, self.weights, self.potential
 
-    def getAccel(self):
-        """
-        @description:
-            Get acceleration at each position.
-        
-        @parameters:        
-            self.q (ndarray): numDimensions x numParticles array
-            self.mass (ndarray):
-            self.potential (func):
-            self.dq (float):
-        """
-        return getForce(self.q, self.potential, self.dq) / self.mass
-
 
     def setWeights(self, temperature):
         """
         @description:
             Set probabilistic weights.
          @parameters:        
-            temperature (float):tests f
+            temperature (float):
+
         """
         kineticEnergy = np.sum((self.p ** 2 / (2 * self.mass)), axis=0)
         hamiltonian = self.potential(self.q) + kineticEnergy
         self.weights = np.exp(- hamiltonian / (boltzmannConst * temperature))
 
-    def initializeThermal(self, mass, temperature, q_std):
+    def initializeThermal(self, mass, temperature, qStd):
         """
         @description:
             Distribute momentum based on a thermal distribution and position
@@ -92,13 +86,12 @@ class Ensemble( ):
             raise ValueError('Mass must be 1D array of length numParticles.')
 
         self.mass = mass
-        
-        self.q = norm.rvs(scale=q_std,
+        self.q = norm.rvs(scale=qStd,
             size=(self.numDimensions, self.numParticles))
         
         # thermal distribution
-        p_std = np.sqrt(self.mass * boltzmannConst * temperature)
-        self.p = norm.rvs(scale=p_std, size=(self.numDimensions,
+        pStd = np.sqrt(self.mass * boltzmannConst * temperature)
+        self.p = norm.rvs(scale=pStd, size=(self.numDimensions,
             self.numParticles))
 
         # set weights
