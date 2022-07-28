@@ -79,6 +79,7 @@ for particleNum in range(numParticles):
 	print(x, y, z)
 	ax.plot3D(x, y, z)
 
-fig.savefig(f'{method}SolarSystem.png')
+# fig.savefig(f'{method}SolarSystem.png')
 plt.show()
+
 
