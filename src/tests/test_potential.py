@@ -26,8 +26,3 @@ if calculatedPot == expPot:
 	print(f'={expPot}')
 	print('Pass')
 
-# print(harmonicPotential1(a))
-
-# We expect the force to be (6, 12)
-print(ensemble1.getAccel())
-print('getAccel works')
