@@ -11,7 +11,6 @@ from mpl_toolkits import mplot3d
 from scipy.constants import k as boltzmannConst
 from scipy.stats import norm
 from ensemble import Ensemble
-from potential import noPotential
 
 
 def boltzmannDistribution(velocity, temperature, mass):
@@ -27,7 +26,7 @@ def main( ):
     numDimensions = 4
     numParticles = 100
 
-    ensemble1 = Ensemble(numDimensions, numParticles, noPotential)
+    ensemble1 = Ensemble(numDimensions, numParticles)
 
     # expected output
     qExp = np.zeros( numDimensions )
@@ -60,8 +59,9 @@ def main( ):
     boltzmannDist2 = lambda velocity: boltzmannDistribution(
         velocity, temperature2, constMass)
 
-    ensemble2 = Ensemble(numDimensions2, numParticles2, noPotential)
-    ensemble2.initializeThermal(mass2, temperature2, 3)
+    ensemble2 = Ensemble(numDimensions2, numParticles2)
+    ensemble2.mass = mass2
+    ensemble2.initializeThermal(temperature2, 3)
 
 
     # fig = plt.figure()

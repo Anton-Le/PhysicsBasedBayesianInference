@@ -21,7 +21,7 @@ class Ensemble( ):
         particle, as well as the potential function.
     """
 
-    def __init__(self, numDimensions, numParticles, potential):
+    def __init__(self, numDimensions, numParticles):
         """
         @description:
             Initialize ensemble object
@@ -39,15 +39,8 @@ class Ensemble( ):
         self.numDimensions = numDimensions
         self.q = np.zeros((numDimensions, numParticles))
         self.p = np.zeros((numDimensions, numParticles))
-        self.mass = np.zeros(numParticles)
+        self.mass = np.ones(numParticles)
         self.weights = np.zeros(numParticles)
-        if potential:
-            self.potential = potential
-            self.nBody = False
-        else:
-            self.potential = lambda q: nBodyPotential(q, self.mass)
-            self.nBody = True
-        self.dq = 1e-8 # for differentiation
 
     def __iter__(self):
         '''
@@ -57,18 +50,18 @@ class Ensemble( ):
         return self.q, self.p, self.mass, self.weights, self.potential
 
 
-    def setWeights(self, temperature):
-        """
-        @description:
-            Set probabilistic weights.
-         @parameters:        
-            temperature (float):
-        """
-        kineticEnergy = np.sum((self.p ** 2 / (2 * self.mass)), axis=0)
-        hamiltonian = self.potential(self.q) + kineticEnergy
-        self.weights = np.exp(- hamiltonian / (boltzmannConst * temperature))
+    # def setWeights(self, temperature):
+    #     """
+    #     @description:
+    #         Set probabilistic weights.
+    #      @parameters:        
+    #         temperature (float):
+    #     """
+    #     kineticEnergy = np.sum((self.p ** 2 / (2 * self.mass)), axis=0)
+    #     hamiltonian = self.potential(self.q) + kineticEnergy
+    #     self.weights = np.exp(- hamiltonian / (boltzmannConst * temperature))
 
-    def initializeThermal(self, mass, temperature, qStd):
+    def initializeThermal(self, temperature, qStd):
         """
         @description:
             Distribute momentum based on a thermal distribution and position
@@ -80,10 +73,6 @@ class Ensemble( ):
             q_std (float): Standard deviation in positions.
         """
 
-        if len(mass) != self.numParticles or np.ndim(mass) != 1:
-            raise ValueError('Mass must be 1D array of length numParticles.')
-
-        self.mass = mass
         self.q = norm.rvs(scale=qStd,
             size=(self.numDimensions, self.numParticles))
         
@@ -93,7 +82,7 @@ class Ensemble( ):
             self.numParticles))
 
         # set weights
-        self.setWeights(temperature)
+        # self.setWeights(temperature)
 
 
     def particle(self, particleNum):

@@ -25,6 +25,38 @@ class Integrator:
         We do not store the solution at each time step, but the solution at final simulation
         time.
     """
+    def __init__(self, ensemble, stepSize, finalTime, gradient):
+        '''
+        @parameters:
+            ensemble (Ensemble):
+            stepSize (float):
+            finalTime (float):
+            gradient (func): Gradient of potential.
+        '''
+        # initial positions
+        self.q = np.copy(ensemble.q)
+        # initial momenta
+        self.p = np.copy(ensemble.p)
+        self.mass = np.copy(ensemble.mass)
+        # calculate initial velocities
+        self.v = self.p / self.mass
+        self.numParticles = ensemble.numParticles
+        # step size for integrator
+        self.stepSize = stepSize
+        # final simulation time
+        self.finalTime = finalTime
+        self.numSteps = int(self.finalTime/self.stepSize)
+
+        # gradient function
+        self.gradient = gradient
+
+
+        # save avoid expenseive numerical differentiation of nBody potential
+        if not gradient:
+            print(f'Gradient={gradient} - performing nBody simulation.')
+            self.getAccel = self.getAccelNBody
+            
+
     def getAccel(self, i):
         """
         @description:
@@ -36,9 +68,8 @@ class Integrator:
             self.potential (func):
             self.dq (float):
         """
-        force = -approx_fprime(self.q[:, i], self.potential, np.sqrt(np.finfo(float).eps))
 
-        return  force / self.mass[i]
+        return  -self.gradient(self.q[:, i]) / self.mass[i]
 
     def getAccelNBody(self, i):
         """
@@ -51,37 +82,6 @@ class Integrator:
             mass (ndarray): numParticles array of masses
         """
         return getAccelNBody(self.q, self.mass, i)
-
-
-    def __init__(self, ensemble, stepSize, finalTime):
-        '''
-        @parameters:
-            ensemble (Ensemble):
-            stepSize (float):
-            finalTime (float):
-        '''
-        # initial positions
-        self.q = np.copy(ensemble.q)
-        # initial momenta
-        self.p = np.copy(ensemble.p)
-        self.mass = np.copy(ensemble.mass)
-        # calculate initial velocities
-        self.v = self.p / self.mass
-        self.numParticles = ensemble.numParticles
-        self.dq = ensemble.dq
-        # step size for integrator
-        self.stepSize = stepSize
-        # final simulation time
-        self.finalTime = finalTime
-        self.numSteps = int(self.finalTime/self.stepSize)
-
-        # potential function
-        self.potential = ensemble.potential
-
-
-        # save avoid expenseive numerical differentiation of nBody potential
-        if ensemble.nBody:
-            self.getAccel = self.getAccelNBody
             
 
     def integrate(self):

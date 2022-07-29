@@ -9,6 +9,7 @@ File contain potentials & function to calculate n-body gravitational force.
 """
 
 import numpy as np
+import jax.numpy as jnp
 from scipy.constants import G as gravConst
 from numbers import Real # check if variable is number
 from scipy.optimize import approx_fprime
@@ -22,7 +23,7 @@ def harmonicPotentialND(q, springConsts):
         springConsts (ndarray): numDimensions array of spring constants
     """
 
-    return 0.5 * np.dot(springConsts, q ** 2)
+    return 0.5 * jnp.dot(springConsts, q ** 2)
 
 
 def getAccelNBody(q, mass, i):
