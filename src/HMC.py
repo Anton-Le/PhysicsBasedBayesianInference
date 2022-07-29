@@ -38,17 +38,17 @@ class HMC:
     
     # negative log potential energy, depends on position q only
     # U(x) = -log( p(x) ) 
-    def potential(self, i):    
+    def potential(self, q):    
         '''
         Get potential of i th particle
         '''
-        return -jnp.log( self.density(ensemble.q[:, i]) )            
+        return -jnp.log( self.density(q) )            
     
     def getWeights(self, q, p):   
         weights = np.zeros(self.ensemble.numParticles)
         for i in range(self.ensemble.numParticles):
             # H = kinetic_energy + potential_energy
-            H = 0.5 * jnp.dot(p[:, i], p[:, i]) / self.ensemble.mass[i] + self.potential(i)
+            H = 0.5 * jnp.dot(p[:, i], p[:, i]) / self.ensemble.mass[i] + self.potential(q[:, i])
             weights[i] = jnp.exp(-H)                    
         return weights
     
@@ -82,6 +82,7 @@ class HMC:
             oldWeights = self.getWeights(self.ensemble.q, self.ensemble.p)                 
             proposedWeights = self.getWeights(q, p)    
             ratio = proposedWeights/oldWeights
+
             acceptanceProb = np.minimum(1, ratio)
             
             u = np.random.uniform(size=self.ensemble.numParticles)
@@ -91,6 +92,8 @@ class HMC:
             # update accepted moves
             samples_hmc[:, :, i] = self.ensemble.q
             #print('------------')
+
+            # Is it a problem that we add the same point to samples twice if a proposal is rejected? I am not sure
             
         return samples_hmc
     
