@@ -10,45 +10,47 @@ import numpy as np
 import jax.numpy as jnp
 from jax import grad
 
-from integrator import leap_frog, stormer_verlet
+from integrator import Leapfrog, StormerVerlet
 
 class HMC:
-    def __init__(self, ensemble, samples, density, integrator, stepSize, finalTime, potential=None, gradient = None):
+    # def __init__(self, ensemble, samples, density, integrator, stepSize, finalTime, potential=None, gradient = None):
+    def __init__(self, ensemble, simulTime, stepSize, density, gradient=None, method='Leapfrog'):
         # we gather all information from the ensemble
         self.ensemble = ensemble
-        self.samples = samples
-        
-        # setting potential interaction
-        # if we are given the potential
-        if potential:
-            self.potential = potential
-        # if we are given the density we want to sample from 
-        else:
-            self.density = density
-            self.potential = self.potential_energy            
-        # if we are given the gradient of the potential, i.e., the force field
+        self.simulTime = simulTime
+        self.stepSize = stepSize
+        self.density = density
+
+
         if gradient:
             self.gradient = gradient
         else:
-            self.gradient = None        
+            self.gradient = grad(self.potential)
 
-        self.stepSize= stepSize
-        self.finalTime = finalTime
-        self.integrator = integrator
+
+        if method == 'Leapfrog':
+            self.integrator = Leapfrog(ensemble, stepSize, simulTime, gradient)
+        elif method == 'Stormer-Verlet':
+            self.integrator = StormerVerlet(ensemble, stepSize, simulTime, gradient)
+        else:
+            raise ValueError('Invalid integration method selected.')
+
     
     # negative log potential energy, depends on position q only
     # U(x) = -log( p(x) ) 
-    def potential_energy(self, x):    
-        # if we are given the density we want to sample from
-        return -jnp.log( self.density(x) )            
+    def potential(self, i):    
+        '''
+        Get potential of i th particle
+        '''
+        return -jnp.log( self.density(ensemble.q[:, i]) )            
     
-    def exponential_hamiltonian(self, q, p):   
-        energy = np.zeros(self.ensemble.numParticles)
+    def getWeights(self, q, p):   
+        weights = np.zeros(self.ensemble.numParticles)
         for i in range(self.ensemble.numParticles):
             # H = kinetic_energy + potential_energy
-            H = 0.5*jnp.linalg.norm(self.ensemble.p[:, i])**2 + self.potential(self.ensemble.q[:, i])
-            energy[i] = jnp.exp(-H)                    
-        return energy
+            H = 0.5 * jnp.dot(p[:, i], p[:, i]) / self.ensemble.mass[i] + self.potential(i)
+            weights[i] = jnp.exp(-H)                    
+        return weights
     
     def print_information(self):
         print('integrator: ', self.integrator)
@@ -56,57 +58,36 @@ class HMC:
         print('time step: ', self.stepSize)
         print('total samples to compute: ', self.samples)
         
-    def hmc_sample(self):
+    def getSamples(self, numSamples, temperature, qStd):
         
-        # mean and variance for momenta, these are fixed. Standard multidimensional Gaussian 
-        mean = np.zeros(self.ensemble.numDimensions)
-        cov = np.identity(self.ensemble.numDimensions)        
+        self.ensemble.initializeThermal(temperature, qStd)       
         
         # to store samples generated during HMC iteration. 
         # This is an array of matrices, each matrix corresponds to an HMC sample
-        samples_hmc = np.zeros(self.ensemble.numParticles*self.ensemble.numDimensions*self.samples).reshape((self.ensemble.numDimensions,self.ensemble.numParticles, -1))
-        
+        samples_hmc = np.zeros((self.ensemble.numParticles, self.ensemble.numDimensions, numSamples))
         self.print_information()
         
         for i in range(self.samples):
             if i%100 == 0:            
                 print('HMC iteration ', i+1)
-                
-            # we modify the momenta in the ensemble
-            self.ensemble.p = np.random.multivariate_normal(mean, cov, self.ensemble.numParticles).T
             
-            # solve numerically for positions and momenta
-            # notice that we pass the gradient of the potential function 
-            if 'lp' == self.integrator:
-                if self.gradient:
-                    num_sol = leap_frog(self.ensemble, self.gradient, self.stepSize, self.finalTime) 
-                else:
-                    # we approximate the gradient of the potential
-                    num_sol = leap_frog(self.ensemble, grad(self.potential), self.stepSize, self.finalTime)       
-                                
-            if 'sv' == self.integrator:
-                if self.gradient:                                           
-                    num_sol = stormer_verlet(self.ensemble, self.gradient, self.stepSize, self.finalTime)
-                else:
-                    # we approximate the gradient of the potential
-                    num_sol = stormer_verlet(self.ensemble, grad(self.potential), self.stepSize, self.finalTime)
-            
+
             # numerical solution for momenta and positions
-            newPosition, newMomentum = num_sol.integrate()
+
+            p, q = integrator.integrate()
             
             # flip momenta
             newMomentum = -newMomentum
 
-            proposedPosition = self.exponential_hamiltonian(newPosition, newMomentum)                    
-            oldPosition = self.exponential_hamiltonian(self.ensemble.q, self.ensemble.p)    
-            ratio = proposedPosition/oldPosition
+            oldWeights = self.getWeights(self.ensemble.q, self.ensemble.p)                 
+            proposedWeights = self.getWeights(q, p)    
+            ratio = proposedWeights/oldWeights
             acceptanceProb = np.minimum(1, ratio)
             
-            u = (np.random.rand(self.ensemble.numParticles))
+            u = np.random.uniform(size=self.ensemble.numParticles)
             
-            mask = u < acceptanceProb
-            mask = np.tile(mask, (self.ensemble.numDimensions, 1))            
-            self.ensemble.q[mask] = newPosition[mask]
+            mask = u < acceptanceProb      
+            self.ensemble.q[:, mask] = newPosition[mask]
             # update accepted moves
             samples_hmc[:, :, i] = self.ensemble.q
             #print('------------')
