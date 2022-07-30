@@ -53,6 +53,11 @@ the following **must not** be added to the commits to this repository:
     - object files `*.o`
     - debug files `*.d`
     - precompiled headers `*.gch`
+  - Image files. With following exceptions
+    - EPS/SVG vectorgraphics as those are textual files describing an image
+    - Images used to document reference results.
+        - Such images should be contributed via a separate pull request and require
+          at least one reviewer in addition to the original author.
 
 ## Nomenclature in this document
   - oc-token = open close token such as parenthesis `[,]`, `(,)`, `{,}` and `<,>`
