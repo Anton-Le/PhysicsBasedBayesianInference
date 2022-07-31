@@ -34,10 +34,11 @@ class Integrator:
             gradient (func): Gradient of potential.
         '''
         # initial positions
-        self.q = np.copy(ensemble.q)
+        self.ensemble = ensemble
+        self.q = ensemble.q
         # initial momenta
-        self.p = np.copy(ensemble.p)
-        self.mass = np.copy(ensemble.mass)
+        self.p = ensemble.p
+        self.mass = ensemble.mass
         # calculate initial velocities
         self.v = self.p / self.mass
         self.numParticles = ensemble.numParticles
@@ -99,8 +100,10 @@ class Leapfrog(Integrator):
 
         @parameters:
         """
-
+        
         for i in range(self.numParticles):
+            self.v[:, i] = self.p[:, i] / self.mass[i]
+            
             currentAccel = self.getAccel(i)
             # number of time steps consider on [initialTime, finalTime]
 
@@ -132,6 +135,8 @@ class StormerVerlet(Integrator):
 
         # for each particle
         for i in range(self.numParticles):
+            self.v[:, i] = self.p[:, i] / self.mass[i]
+
             qPast = np.copy(self.q[:, i])
             self.q[:, i] = self.q[:, i] + self.v[:, i] * self.stepSize + 0.5 * self.getAccel(i) * self.stepSize ** 2
 

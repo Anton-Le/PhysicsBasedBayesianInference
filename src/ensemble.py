@@ -81,8 +81,24 @@ class Ensemble( ):
         self.p = norm.rvs(scale=pStd, size=(self.numDimensions,
             self.numParticles))
 
-        # set weights
-        # self.setWeights(temperature)
+
+    def setMomementum(self, temperature):
+        """
+        @description:
+            Distribute momentum based on a thermal distribution and position
+            with a normal distribution. Also set probabilistic weights.
+        
+         @parameters:        
+            mass (ndarray): Length of numParticles
+            temperature (float)
+            q_std (float): Standard deviation in positions.
+        """        
+        # thermal distribution
+        pStd = np.sqrt(self.mass * boltzmannConst * temperature)
+        self.p = norm.rvs(scale=pStd, size=(self.numDimensions,
+            self.numParticles))
+
+
 
 
     def particle(self, particleNum):
