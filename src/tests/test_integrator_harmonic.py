@@ -14,13 +14,15 @@ sys.path.append('../')
 from ensemble import Ensemble
 from integrator import Leapfrog, StormerVerlet
 from potential import harmonicPotentialND
+from jax import grad
 import numpy as np
 import matplotlib.pyplot as plt 
 import itertools
 
 
-springConsts = np.array((2, 3))
+springConsts = np.array((2., 3.)) # must be floats to work with grad
 harmonicPotential = lambda q: harmonicPotentialND(q, springConsts)
+harmonicGradient = grad(harmonicPotential)
 
 
 def harmonicOscillatorAnalytic(ensemble, finalTime, springConsts):
@@ -55,17 +57,18 @@ def harmonic_test(stepSize, numParticles, method):
 
 
     #ensemble initialization
-    ensemble1 = Ensemble(numDimensions, numParticles, harmonicPotential)
-    ensemble1.initializeThermal(mass, temperature, q_std)
+    ensemble1 = Ensemble(numDimensions, numParticles)
+    ensemble1.mass = mass
+    ensemble1.initializeThermal(temperature, q_std)
     print('Initial conditions:')
     print(ensemble1.q[dimension])
     print(30*'#')
 
     # object of class Integrator - CHANGE IF DESIRED
     if method == 'Leapfrog':
-        sol_q_p = Leapfrog(ensemble1, stepSize, finalTime)
+        sol_q_p = Leapfrog(ensemble1, stepSize, finalTime, harmonicGradient)
     elif method == 'Stormer-Verlet':
-        sol_q_p = StormerVerlet(ensemble1, stepSize, finalTime)
+        sol_q_p = StormerVerlet(ensemble1, stepSize, finalTime, harmonicGradient)
     else:
         raise ValueError('Method must be \'Leapfrog\' or \'Stormer-Verlet\'')
 
@@ -90,7 +93,7 @@ def plotError():
     methods = ['Leapfrog', 'Stormer-Verlet']
     numParticles = 5 # clearest with one particle
     numDimensions = 1
-    stepSizes = np.logspace(-5, -1, 6)
+    stepSizes = np.logspace(-3, -1, 3)
     logStepSizes = np.log10(stepSizes)
     errors = np.zeros((len(stepSizes), numParticles))
 

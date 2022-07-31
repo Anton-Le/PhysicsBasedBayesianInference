@@ -12,11 +12,11 @@ import numpy as np
 springConsts = np.array([2, 3])
 harmonicPotential1 = lambda q: harmonicPotentialND(q, springConsts) 
 
-ensemble1 = Ensemble(2, 10, harmonicPotential1)
+ensemble1 = Ensemble(2, 10)
 ensemble1.mass = np.ones(10)
 
 print('We expect a potential of 2*3^2 + 3*4^2 / 2 =18+48 /2=33 at (3, 4)')
-a = np.array([3, 4])
+a = np.array([3., 4.])
 ensemble1.q[:, 0] = a
 print(ensemble1.q)
 expPot = 33

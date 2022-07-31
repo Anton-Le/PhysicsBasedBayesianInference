@@ -13,7 +13,6 @@ sys.path.append('../')
 
 from ensemble import Ensemble
 from integrator import Leapfrog, StormerVerlet
-from potential import harmonicPotentialND
 import numpy as np
 from scipy.constants import Boltzmann
 import matplotlib.pyplot as plt 
@@ -40,17 +39,18 @@ NUM_ITERATIONS = 2
 # create ensemble
 
 
-ensemble1 = Ensemble(NUM_DIMENSIONS, NUM_PARTICLES, None)
-ensemble1.initializeThermal(MASS, TEMPERATURE, Q_STD)
+ensemble1 = Ensemble(NUM_DIMENSIONS, NUM_PARTICLES)
+ensemble1.mass = MASS
+ensemble1.initializeThermal(TEMPERATURE, Q_STD)
 
 
 # create integrator
 
 
 if METHOD == 'Leapfrog':
-	integrator = Leapfrog(ensemble1, STEP_SIZE, FINAL_TIME)
+	integrator = Leapfrog(ensemble1, STEP_SIZE, FINAL_TIME, None)
 elif METHOD == 'Stormer-Verlet':
-	integrator = StormerVerlet(ensemble1, STEP_SIZE, FINAL_TIME)
+	integrator = StormerVerlet(ensemble1, STEP_SIZE, FINAL_TIME, None)
 else:
 	raise ValueError('Invalid method.')
 
