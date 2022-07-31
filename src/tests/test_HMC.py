@@ -13,14 +13,19 @@ sys.path.append('../')
 import numpy as np
 import jax.numpy as jnp
 from matplotlib import pyplot as plt
-
+from scipy.constants import Boltzmann
+from jax.scipy.stats import multivariate_normal
+import jax
 from ensemble import Ensemble
 from HMC import HMC
 
 
+jax.config.update("jax_enable_x64", True) # avoid NaNs whilst calculating grads
+
+
 # this is the density we want to sample from 
 def density(x):
-    return jnp.exp( -0.50*jnp.linalg.norm(x)**2 ) / jnp.sqrt((2*jnp.pi)**2) 
+    return jnp.exp( -0.50*jnp.linalg.norm(x)**2 ) / jnp.sqrt(2*jnp.pi) 
 
 # potential equals -log(density)
 def potential(x):    
@@ -31,37 +36,44 @@ def main():
     # ensemble setup
     numDimensions = 2
     numParticles = 1
-    mass = np.ones(numParticles)
-    temperature = 1
-    q_std = 0.1
+    temperature = 1/Boltzmann
+    qStd = 1
     
     # integrator setup
-    finalTime = 2
-    stepSize = 0.05
+    finalTime = 1
+    stepSize = 0.1
+
+    # PDF Setup
+    mean = jnp.zeros(numDimensions)
+    cov = np.random.uniform(size=(2, 2)) # random covariance matrix
+    cov = np.dot(cov, cov.T) # variance must be positive
+    densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov)
     
     # HMC setup 
-    samples = 1000
-    density_function = density
+    numSamples = 100
     
     # generate and initialize ensemble
-    ensemble1 = Ensemble(numDimensions, numParticles, potential)
-    ensemble1.initializeThermal(mass, temperature, q_std)
+    ensemble1 = Ensemble(numDimensions, numParticles)
     
     # HMC algorithm
-    hmc_result = HMC(ensemble1, samples, density_function, 'sv', stepSize, finalTime  )
-    hmc_samples = hmc_result.hmc_sample()
+    hmcObject = HMC(ensemble1, finalTime, stepSize, densityFunc)
+    hmcSamples, _ = hmcObject.getSamples(numSamples, temperature, qStd)
+
+
+    
     
     # we test implementation on a 2D standard normal distribution
     ## theoretical resulst for 2D standard Gaussian distribution
     mean = np.zeros(numDimensions)
-    cov = np.identity(numDimensions)
-    normal = np.zeros(numParticles*numDimensions*samples).reshape((numDimensions,numParticles, -1))
-    for k in range(samples):
-        normal[:, : , k] = np.random.multivariate_normal(mean, cov, numParticles).T
+    normal = np.zeros_like(hmcSamples)
+
+    for k in range(numSamples):
+        normal[:, : , k] = np.random.multivariate_normal(mean, cov, size=numParticles).T
     
+
     # plot results normal distribution
     fig, ax = plt.subplots()
-    ax.plot( hmc_samples[0, 0, :], hmc_samples[1, 0, :], label = "HMC", marker = '*', c='k', lw =0.2, ls ='-', markersize=4)
+    ax.plot( hmcSamples[0, 0, :], hmcSamples[1, 0, :], label = "HMC", marker = '*', c='k', lw =0.2, ls ='-', markersize=4)
     ax.plot( normal[0, 0, :], normal[1, 0, :], label = "theoretical", marker = '.', c='r', lw =0.2, ls ='-', markersize=4)
     plt.title(r'2D standard Gaussian')
     plt.xlabel(r'$x_{1}$')
@@ -70,6 +82,6 @@ def main():
     plt.show()
             
 if __name__ == '__main__':
-    hmc_samples = main()
+    hmcSamples = main()
     
     

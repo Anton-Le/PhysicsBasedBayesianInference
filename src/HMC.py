@@ -9,11 +9,13 @@ Created on Fri Jul 22 11:24:44 2022
 import numpy as np
 import jax.numpy as jnp
 from jax import grad
-
+from scipy.stats import norm
+from scipy.constants import Boltzmann as boltzmannConst
 from integrator import Leapfrog, StormerVerlet
+import jax
+
 
 class HMC:
-    # def __init__(self, ensemble, samples, density, integrator, stepSize, finalTime, potential=None, gradient = None):
     def __init__(self, ensemble, simulTime, stepSize, density, gradient=None, method='Leapfrog'):
         # we gather all information from the ensemble
         self.ensemble = ensemble
@@ -29,21 +31,44 @@ class HMC:
 
 
         if method == 'Leapfrog':
-            self.integrator = Leapfrog(ensemble, stepSize, simulTime, gradient)
+            self.integrator = Leapfrog(ensemble, stepSize, simulTime, self.gradient)
         elif method == 'Stormer-Verlet':
-            self.integrator = StormerVerlet(ensemble, stepSize, simulTime, gradient)
+            self.integrator = StormerVerlet(ensemble, stepSize, simulTime, self.gradient)
         else:
             raise ValueError('Invalid integration method selected.')
 
     
     # negative log potential energy, depends on position q only
     # U(x) = -log( p(x) ) 
-    def potential(self, q):    
+    def potential(self, q):
         '''
-        Get potential of i th particle
+        Get potential at position q.
         '''
-        return -jnp.log( self.density(q) )            
+        return -jnp.log( self.density(q) )       
+
+
+    def initializeThermalDist(self, temperature, qStd):
+        """
+        @description:
+            Distribute momentum based on a thermal distribution and position
+            with a normal distribution. Also set probabilistic weights.
+        
+         @parameters:        
+            mass (ndarray): Length of numParticles
+            temperature (float)
+            q_std (float): Standard deviation in positions.
+        """
+
+        q = norm.rvs(scale=qStd,
+            size=(self.ensemble.numDimensions, self.ensemble.numParticles))
+        
+        # thermal distribution
+        pStd = np.sqrt(self.ensemble.mass * boltzmannConst * temperature)
+        p = norm.rvs(scale=pStd, size=(self.ensemble.numDimensions,
+            self.ensemble.numParticles))   
+        return q, p  
     
+
     def getWeights(self, q, p):   
         weights = np.zeros(self.ensemble.numParticles)
         for i in range(self.ensemble.numParticles):
@@ -54,48 +79,83 @@ class HMC:
     
     def print_information(self):
         print('integrator: ', self.integrator)
-        print('final integration time: ', self.finalTime)
+        print('final integration time: ', self.simulTime)
         print('time step: ', self.stepSize)
-        print('total samples to compute: ', self.samples)
+
+
+    def setMomementum(self, temperature):
+        """
+        @description:
+            Distribute momentum based on a thermal distribution and position
+            with a normal distribution. Also set probabilistic weights.
         
+         @parameters:        
+            mass (ndarray): Length of numParticles
+            temperature (float)
+            q_std (float): Standard deviation in positions.
+        """        
+        # thermal distribution
+        pStd = np.sqrt(self.ensemble.mass * boltzmannConst * temperature)
+        p = norm.rvs(scale=pStd, size=(self.ensemble.numDimensions,
+            self.ensemble.numParticles))
+
+        return p
+        
+
     def getSamples(self, numSamples, temperature, qStd):
         
-        self.ensemble.initializeThermal(temperature, qStd)       
+            
         
         # to store samples generated during HMC iteration. 
         # This is an array of matrices, each matrix corresponds to an HMC sample
-        samples_hmc = np.zeros((self.ensemble.numParticles, self.ensemble.numDimensions, numSamples))
+        samples_hmc = np.zeros((self.ensemble.numDimensions, self.ensemble.numParticles, numSamples))
+        shape = samples_hmc.shape
+        momentum_hmc = np.zeros_like(samples_hmc)
         self.print_information()
+        self.integrator.q, self.integrator.p = self.initializeThermalDist(temperature, qStd)
+
         
-        for i in range(self.samples):
+        for i in range(numSamples):
             if i%100 == 0:            
                 print('HMC iteration ', i+1)
-            
+
+            self.integrator.p = self.setMomementum(temperature)
+            oldQ = np.copy(self.integrator.q)
+            oldP = np.copy(self.integrator.p)
+            oldWeights = self.getWeights(self.integrator.q, self.integrator.p)    
 
             # numerical solution for momenta and positions
 
-            p, q = integrator.integrate()
+            q, p = self.integrator.integrate()
             
             # flip momenta
-            newMomentum = -newMomentum
+            p = -p
 
-            oldWeights = self.getWeights(self.ensemble.q, self.ensemble.p)                 
+                            
             proposedWeights = self.getWeights(q, p)    
             ratio = proposedWeights/oldWeights
 
+
             acceptanceProb = np.minimum(1, ratio)
-            
+
+
             u = np.random.uniform(size=self.ensemble.numParticles)
+
             
-            mask = u < acceptanceProb      
-            self.ensemble.q[:, mask] = newPosition[mask]
+            # keep updated position/momenta unless:
+            mask = u > acceptanceProb
+
+
+      
+            self.integrator.q[:, mask] = oldQ[:, mask]
+            self.integrator.p[:, mask] = oldQ[:, mask]
             # update accepted moves
-            samples_hmc[:, :, i] = self.ensemble.q
-            #print('------------')
+            samples_hmc[:, :, i] = self.integrator.q
+            momentum_hmc[:, :, i] = self.integrator.p
 
             # Is it a problem that we add the same point to samples twice if a proposal is rejected? I am not sure
             
-        return samples_hmc
+        return samples_hmc, momentum_hmc
     
 # toy examples to test HMC implementation on a 2D std Gaussian distribution
 def density(x):
