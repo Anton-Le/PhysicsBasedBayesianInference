@@ -31,7 +31,7 @@ sunMass = 1.989e30
 moonMass = 7.34e22
 mass = np.array([earthMass, sunMass, moonMass])
 
-ensemble1 = Ensemble(NUM_DIMENSIONS, numParticles, None)
+ensemble1 = Ensemble(NUM_DIMENSIONS, numParticles)
 ensemble1.mass = mass
 
 # we expect the gravitational force to be (-3, -4)/125 * G at (3, 4)
@@ -47,9 +47,9 @@ stepSize = 600
 finalTime = 3600
 
 if method == 'Leapfrog':
-	integrator = Leapfrog(ensemble1, stepSize, finalTime)
+	integrator = Leapfrog(ensemble1, stepSize, finalTime, None)
 elif method == 'Stormer-Verlet':
-	integrator = StormerVerlet(ensemble1, stepSize, finalTime)
+	integrator = StormerVerlet(ensemble1, stepSize, finalTime, None)
 else:
 	raise ValueError('Not valid integrator method.')
 

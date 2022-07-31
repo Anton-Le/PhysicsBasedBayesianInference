@@ -17,7 +17,7 @@ from potential import harmonicPotentialND
 import numpy as np
 from scipy.constants import Boltzmann
 import matplotlib.pyplot as plt 
-from jax import jit, pmap
+from jax import jit, pmap, grad
 import itertools
 import cProfile
 import pstats
@@ -34,27 +34,30 @@ V_PARTICLES = 10
 TEMPERATURE = MASS_VAL * V_PARTICLES**2 / (2 * Boltzmann) # T =mv^2 / 2 k_b
 
 METHOD = 'Stormer-Verlet'
-STEP_SIZE = 0.01
+STEP_SIZE = 0.1
 FINAL_TIME = 10
 
 NUM_ITERATIONS = 2
 
 # create ensemble
 
-springConsts = np.array((2, 3, 4))
+springConsts = np.array((2., 3., 4.))
 harmonicPotential = lambda q: harmonicPotentialND(q, springConsts)
+harmonicGradient = grad(harmonicPotential)
+print(harmonicGradient(np.array([2., 2., 3.])))
 
-ensemble1 = Ensemble(NUM_DIMENSIONS, NUM_PARTICLES, harmonicPotential)
-ensemble1.initializeThermal(MASS, TEMPERATURE, Q_STD)
+ensemble1 = Ensemble(NUM_DIMENSIONS, NUM_PARTICLES)
+ensemble1.mass = MASS
+ensemble1.initializeThermal(TEMPERATURE, Q_STD)
 
 
 # create integrator
 
 
 if METHOD == 'Leapfrog':
-	integrator = Leapfrog(ensemble1, STEP_SIZE, FINAL_TIME)
+	integrator = Leapfrog(ensemble1, STEP_SIZE, FINAL_TIME, harmonicGradient)
 elif METHOD == 'Stormer-Verlet':
-	integrator = StormerVerlet(ensemble1, STEP_SIZE, FINAL_TIME)
+	integrator = StormerVerlet(ensemble1, STEP_SIZE, FINAL_TIME, harmonicGradient)
 else:
 	raise ValueError('Invalid method.')
 
