@@ -16,7 +16,20 @@ import jax
 
 
 class HMC:
+    """
+    @description:
+        Class with getSamples method.
+    """
     def __init__(self, ensemble, simulTime, stepSize, density, gradient=None, method='Leapfrog'):
+        """
+        @parameters:
+            ensemble (Ensemble):
+            simulTime (float): Duration of Hamiltonian simulation.
+            stepSize (float):
+            density (func): Probability density function taking position.
+            gradient (func): Optional gradient of -ln(density(q))
+            method (str): 
+        """
         # we gather all information from the ensemble
         self.ensemble = ensemble
         self.simulTime = simulTime
@@ -41,9 +54,14 @@ class HMC:
     # negative log potential energy, depends on position q only
     # U(x) = -log( p(x) ) 
     def potential(self, q):
-        '''
-        Get potential at position q.
-        '''
+        """
+        @description:
+            Get potential at position q.
+
+        @parameters:
+            self.density (func):
+            q (ndarray): Position
+        """
         return -jnp.log( self.density(q) )       
 
 
@@ -56,7 +74,7 @@ class HMC:
          @parameters:        
             mass (ndarray): Length of numParticles
             temperature (float)
-            q_std (float): Standard deviation in positions.
+            qStd (float): Standard deviation in positions.
         """
 
         q = norm.rvs(scale=qStd,
@@ -69,7 +87,17 @@ class HMC:
         return q, p  
     
 
-    def getWeights(self, q, p):   
+    def getWeights(self, q, p):
+        """
+        @description:
+            Get probabilistic weights of proposed position/momentum step.
+
+        @parameters:
+            q (ndarray): numDimensions x numParticles array
+            p (ndarray): numDimensions x numParticles array
+            self.mass (ndarray):
+            self.potential (func): Taking q[:, i]
+        """   
         weights = np.zeros(self.ensemble.numParticles)
         for i in range(self.ensemble.numParticles):
             # H = kinetic_energy + potential_energy
@@ -86,13 +114,10 @@ class HMC:
     def setMomementum(self, temperature):
         """
         @description:
-            Distribute momentum based on a thermal distribution and position
-            with a normal distribution. Also set probabilistic weights.
+            Distribute momentum based on a thermal distribution.
         
          @parameters:        
-            mass (ndarray): Length of numParticles
             temperature (float)
-            q_std (float): Standard deviation in positions.
         """        
         # thermal distribution
         pStd = np.sqrt(self.ensemble.mass * boltzmannConst * temperature)
@@ -103,14 +128,22 @@ class HMC:
         
 
     def getSamples(self, numSamples, temperature, qStd):
-        
-            
-        
+        """
+        @description:
+            Get samples from HMC.
+       
+         @parameters:        
+            numSamples (int):
+            temperature (float): Temperature used to set momentum.
+            qStd (float): Standard deviation of initial positions.
+        """                
         # to store samples generated during HMC iteration. 
         # This is an array of matrices, each matrix corresponds to an HMC sample
         samples_hmc = np.zeros((self.ensemble.numDimensions, self.ensemble.numParticles, numSamples))
         shape = samples_hmc.shape
+      
         momentum_hmc = np.zeros_like(samples_hmc)
+
         self.print_information()
         self.integrator.q, self.integrator.p = self.initializeThermalDist(temperature, qStd)
 
@@ -152,6 +185,7 @@ class HMC:
             # update accepted moves
             samples_hmc[:, :, i] = self.integrator.q
             momentum_hmc[:, :, i] = self.integrator.p
+
 
             # Is it a problem that we add the same point to samples twice if a proposal is rejected? I am not sure
             

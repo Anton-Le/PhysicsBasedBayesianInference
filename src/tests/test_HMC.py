@@ -60,6 +60,7 @@ def main():
     hmcSamples, _ = hmcObject.getSamples(numSamples, temperature, qStd)
 
 
+
     
     
     # we test implementation on a 2D standard normal distribution
