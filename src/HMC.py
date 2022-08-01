@@ -65,7 +65,7 @@ class HMC:
         return -jnp.log( self.density(q) )       
 
 
-    def getWeights(self, q, p):   
+    def getWeights(self, q, p):
         """
         @description:
             Get probabilistic weights of proposed position/momentum step.
