@@ -131,19 +131,19 @@ class HMC:
         """
         @description:
             Get samples from HMC.
-        
+       
          @parameters:        
             numSamples (int):
             temperature (float): Temperature used to set momentum.
             qStd (float): Standard deviation of initial positions.
         """                
-            
-        
         # to store samples generated during HMC iteration. 
         # This is an array of matrices, each matrix corresponds to an HMC sample
         samples_hmc = np.zeros((self.ensemble.numDimensions, self.ensemble.numParticles, numSamples))
         shape = samples_hmc.shape
-        # momentum_hmc = np.zeros_like(samples_hmc)
+      
+        momentum_hmc = np.zeros_like(samples_hmc)
+
         self.print_information()
         self.integrator.q, self.integrator.p = self.initializeThermalDist(temperature, qStd)
 
@@ -184,11 +184,12 @@ class HMC:
             self.integrator.p[:, mask] = oldQ[:, mask]
             # update accepted moves
             samples_hmc[:, :, i] = self.integrator.q
-            # momentum_hmc[:, :, i] = self.integrator.p
+            momentum_hmc[:, :, i] = self.integrator.p
+
 
             # Is it a problem that we add the same point to samples twice if a proposal is rejected? I am not sure
             
-        return samples_hmc
+        return samples_hmc, momentum_hmc
     
 # toy examples to test HMC implementation on a 2D std Gaussian distribution
 def density(x):

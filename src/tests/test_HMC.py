@@ -57,7 +57,8 @@ def main():
     
     # HMC algorithm
     hmcObject = HMC(ensemble1, finalTime, stepSize, densityFunc)
-    hmcSamples = hmcObject.getSamples(numSamples, temperature, qStd)
+    hmcSamples, _ = hmcObject.getSamples(numSamples, temperature, qStd)
+
 
 
     
