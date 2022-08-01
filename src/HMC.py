@@ -65,28 +65,6 @@ class HMC:
         return -jnp.log( self.density(q) )       
 
 
-    def initializeThermalDist(self, temperature, qStd):
-        """
-        @description:
-            Distribute momentum based on a thermal distribution and position
-            with a normal distribution. Also set probabilistic weights.
-        
-         @parameters:        
-            mass (ndarray): Length of numParticles
-            temperature (float)
-            qStd (float): Standard deviation in positions.
-        """
-
-        q = norm.rvs(scale=qStd,
-            size=(self.ensemble.numDimensions, self.ensemble.numParticles))
-        
-        # thermal distribution
-        pStd = np.sqrt(self.ensemble.mass * boltzmannConst * temperature)
-        p = norm.rvs(scale=pStd, size=(self.ensemble.numDimensions,
-            self.ensemble.numParticles))   
-        return q, p  
-    
-
     def getWeights(self, q, p):
         """
         @description:
@@ -110,21 +88,6 @@ class HMC:
         print('final integration time: ', self.simulTime)
         print('time step: ', self.stepSize)
 
-
-    def setMomementum(self, temperature):
-        """
-        @description:
-            Distribute momentum based on a thermal distribution.
-        
-         @parameters:        
-            temperature (float)
-        """        
-        # thermal distribution
-        pStd = np.sqrt(self.ensemble.mass * boltzmannConst * temperature)
-        p = norm.rvs(scale=pStd, size=(self.ensemble.numDimensions,
-            self.ensemble.numParticles))
-
-        return p
         
 
     def getSamples(self, numSamples, temperature, qStd):
@@ -145,14 +108,14 @@ class HMC:
         momentum_hmc = np.zeros_like(samples_hmc)
 
         self.print_information()
-        self.integrator.q, self.integrator.p = self.initializeThermalDist(temperature, qStd)
+        self.integrator.q = self.ensemble.setQ(qStd)
 
         
         for i in range(numSamples):
             if i%100 == 0:            
                 print('HMC iteration ', i+1)
 
-            self.integrator.p = self.setMomementum(temperature)
+            self.integrator.p = self.ensemble.setP(temperature)
             oldQ = np.copy(self.integrator.q)
             oldP = np.copy(self.integrator.p)
             oldWeights = self.getWeights(self.integrator.q, self.integrator.p)    
