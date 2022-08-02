@@ -44,10 +44,11 @@ def main():
     cov = np.random.uniform(size=(2, 2)) # random covariance matrix
     cov = np.dot(cov, cov.T) # variance must be positive
     densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov)
+    potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov)
 
 
     # ensemble setip cont.
-    qStd = np.min(cov) # If qStd is large and min(cov) is small NaNs frequently occur.
+    qStd = 1000 # If qStd is large and min(cov) is small NaNs frequently occur.
 
     
     # integrator setup
@@ -61,7 +62,8 @@ def main():
     ensemble1 = Ensemble(numDimensions, numParticles)
     
     # HMC algorithm
-    hmcObject = HMC(ensemble1, finalTime, stepSize, densityFunc)
+    hmcObject = HMC(ensemble1, finalTime, stepSize, densityFunc, potential=potentialFunc)
+    # hmcObject = HMC(ensemble1, finalTime, stepSize, densityFunc)
     hmcSamples, _ = hmcObject.getSamples(numSamples, temperature, qStd)
 
 

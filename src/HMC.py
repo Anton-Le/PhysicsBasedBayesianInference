@@ -22,13 +22,14 @@ class HMC:
     @description:
         Class with getSamples method.
     """
-    def __init__(self, ensemble, simulTime, stepSize, density, gradient=None, method='Leapfrog'):
+    def __init__(self, ensemble, simulTime, stepSize, density, potential=None, gradient=None, method='Leapfrog'):
         """
         @parameters:
             ensemble (Ensemble):
             simulTime (float): Duration of Hamiltonian simulation.
             stepSize (float):
             density (func): Probability density function taking position.
+            potential (func): Optional function equal to -ln(density)
             gradient (func): Optional gradient of -ln(density(q))
             method (str): 
         """
@@ -37,6 +38,11 @@ class HMC:
         self.simulTime = simulTime
         self.stepSize = stepSize
         self.density = density
+
+        if potential:
+            self.potential = potential
+        else:
+            self.potential = self.potentialFunc
 
 
         if gradient:
@@ -55,7 +61,7 @@ class HMC:
     
     # negative log potential energy, depends on position q only
     # U(x) = -log( p(x) ) 
-    def potential(self, q):
+    def potentialFunc(self, q):
         """
         @description:
             Get potential at position q.
