@@ -159,3 +159,43 @@ The intent is to not bloat the shared development tree.
 
 A review **is required** before the PR can be merged! Should a review not happen within 2 days (48 h) 
 _and_ the code pass existing tests then the pull request can be merged by the contributor themselves.
+
+### 9.1 Using different remotes
+
+The general process of development, as delineated above is:
+  1. Fork this repository to obtain a fork under your account.
+  2. Clone your fork to the development machine.
+  3. Implement changes in the local clone according to the rules above.
+  4. Push the changes to your fork.
+  5. Open a pull request to contribute the changes to this repository.
+
+This process may be amended/overriden by committing directly from the local clone of one's own
+fork to _this_ repository. **Such actions should only be taken in agreement with other developers**
+as they bear a high potential of messing up the development history, requiring extended fixing.
+
+To commit _from the local clone of a fork_ into the base repository the base repository
+must be added as a separate _remote_ repository via:
+
+`git remote add -t dev baseRepo git@github.com:Anton-Le/PhysicsBasedBayesianInference.git`
+
+Here the `baseRepo` is the label the remote repository will be listed under
+in the local clone and `dev` is the default branch. The label for the repote repository
+is arbitrary.
+
+To update the `dev` branch of the local clone directly from the base repositry, rather than
+taking the pathway of fetching the changes into the form in GitHub and then pulling the
+changes from the fork into the local copy, one can do the following:
+
+`git checkout dev`
+`git pull baseRepo dev`
+
+which will pull the `dev` branch of the base repository into the currently checked-out branch.
+
+Similarly, to push the changes from a branch of the local copy into the same branch of the base
+repository, bypassing the forked repository on GitHub, is achieved via:
+
+`git checkout feature-...`
+`git push baseRepo`
+
+This will push the changes made to the `feature-...` branch from the local copy directly to the
+`feature-...` branch of the base repository.
