@@ -59,7 +59,9 @@ def harmonic_test(stepSize, numParticles, method):
     #ensemble initialization
     ensemble1 = Ensemble(numDimensions, numParticles)
     ensemble1.mass = mass
-    ensemble1.initializeThermal(temperature, q_std)
+    ensemble1.setPosition(q_std)
+    ensemble1.setMomentum(temperature)
+    
     print('Initial conditions:')
     print(ensemble1.q[dimension])
     print(30*'#')

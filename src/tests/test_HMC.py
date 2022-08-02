@@ -57,12 +57,9 @@ def main():
     
     # HMC algorithm
     hmcObject = HMC(ensemble1, finalTime, stepSize, densityFunc)
-<<<<<<< HEAD:src/tests/test_HMC.py
-    hmcSamples = hmcObject.getSamples(numSamples, temperature, qStd)
-=======
     hmcSamples, _ = hmcObject.getSamples(numSamples, temperature, qStd)
 
->>>>>>> upstream/bugfix-HMC:src/test/test_HMC.py
+
 
 
     

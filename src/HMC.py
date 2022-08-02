@@ -14,6 +14,8 @@ from scipy.constants import Boltzmann as boltzmannConst
 from integrator import Leapfrog, StormerVerlet
 import jax
 
+jax.config.update("jax_enable_x64", True) # required or grad returns NaNs
+
 
 class HMC:
     """
@@ -65,31 +67,6 @@ class HMC:
         return -jnp.log( self.density(q) )       
 
 
-<<<<<<< HEAD
-    def initializeThermalDist(self, temperature, qStd):
-        """
-        @description:
-            Distribute momentum based on a thermal distribution and position
-            with a normal distribution. Also set probabilistic weights.
-        
-         @parameters:        
-            mass (ndarray): Length of numParticles
-            temperature (float)
-            qStd (float): Standard deviation in positions.
-        """
-
-        q = norm.rvs(scale=qStd,
-            size=(self.ensemble.numDimensions, self.ensemble.numParticles))
-        
-        # thermal distribution
-        pStd = np.sqrt(self.ensemble.mass * boltzmannConst * temperature)
-        p = norm.rvs(scale=pStd, size=(self.ensemble.numDimensions,
-            self.ensemble.numParticles))   
-        return q, p  
-    
-
-=======
->>>>>>> upstream/bugfix-HMC
     def getWeights(self, q, p):
         """
         @description:
@@ -119,11 +96,7 @@ class HMC:
         """
         @description:
             Get samples from HMC.
-<<<<<<< HEAD
-        
-=======
-       
->>>>>>> upstream/bugfix-HMC
+
          @parameters:        
             numSamples (int):
             temperature (float): Temperature used to set momentum.
@@ -138,14 +111,14 @@ class HMC:
         momentum_hmc = np.zeros_like(samples_hmc)
 
         self.print_information()
-        self.integrator.q = self.ensemble.setQ(qStd)
+        self.integrator.q = self.ensemble.setPosition(qStd)
 
         
         for i in range(numSamples):
             if i%100 == 0:            
                 print('HMC iteration ', i+1)
 
-            self.integrator.p = self.ensemble.setP(temperature)
+            self.integrator.p = self.ensemble.setMomentum(temperature)
 
             oldQ = np.copy(self.integrator.q)
             oldP = np.copy(self.integrator.p)

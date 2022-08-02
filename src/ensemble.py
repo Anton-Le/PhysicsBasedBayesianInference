@@ -61,7 +61,7 @@ class Ensemble( ):
     #     hamiltonian = self.potential(self.q) + kineticEnergy
     #     self.weights = np.exp(- hamiltonian / (boltzmannConst * temperature))
 
-    def setQ(self, qStd):
+    def setPosition(self, qStd):
         """
         @description:
             Distribute position with a normal distribution. 
@@ -76,7 +76,7 @@ class Ensemble( ):
         return self.q
 
 
-    def setP(self, temperature):
+    def setMomentum(self, temperature):
         """
         @description:
             Distribute momentum based on a thermal distribution.
@@ -89,6 +89,8 @@ class Ensemble( ):
         pStd = np.sqrt(self.mass * boltzmannConst * temperature)
         self.p = norm.rvs(scale=pStd, size=(self.numDimensions,
             self.numParticles))
+
+        return self.p
 
 
 

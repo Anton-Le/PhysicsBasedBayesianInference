@@ -48,7 +48,8 @@ print(harmonicGradient(np.array([2., 2., 3.])))
 
 ensemble1 = Ensemble(NUM_DIMENSIONS, NUM_PARTICLES)
 ensemble1.mass = MASS
-ensemble1.initializeThermal(TEMPERATURE, Q_STD)
+ensemble1.setMomentum(TEMPERATURE)
+ensemble1.setPosition(Q_STD)
 
 
 # create integrator

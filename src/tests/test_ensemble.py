@@ -61,7 +61,8 @@ def main( ):
 
     ensemble2 = Ensemble(numDimensions2, numParticles2)
     ensemble2.mass = mass2
-    ensemble2.initializeThermal(temperature2, 3)
+    ensemble2.setMomentum(temperature2)
+    ensemble2.setPosition(3)
 
 
     # fig = plt.figure()
