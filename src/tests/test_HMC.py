@@ -37,18 +37,23 @@ def main():
     numDimensions = 2
     numParticles = 1
     temperature = 1/Boltzmann
-    qStd = 1
-    
-    # integrator setup
-    finalTime = 1
-    stepSize = 0.1
+
 
     # PDF Setup
     mean = jnp.zeros(numDimensions)
     cov = np.random.uniform(size=(2, 2)) # random covariance matrix
     cov = np.dot(cov, cov.T) # variance must be positive
     densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov)
+
+
+    # ensemble setip cont.
+    qStd = np.min(cov) # If qStd is large and min(cov) is small NaNs frequently occur.
+
     
+    # integrator setup
+    finalTime = 1
+    stepSize = 0.1
+
     # HMC setup 
     numSamples = 100
     
