@@ -48,7 +48,7 @@ def main():
 
 
     # ensemble setip cont.
-    qStd = 1000 # If qStd is large and min(cov) is small NaNs frequently occur.
+    qStd = 1 # If qStd is large and min(cov) is small NaNs frequently occur.
 
     
     # integrator setup

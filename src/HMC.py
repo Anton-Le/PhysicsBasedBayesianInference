@@ -90,6 +90,14 @@ class HMC:
             H = 0.5 * jnp.dot(p[:, i], p[:, i]) / self.ensemble.mass[i] + self.potential(q[:, i])
             weights[i] = jnp.exp(-H)                    
         return weights
+
+    def getWeightsRatio(self, newQ, newP, oldQ, oldP):
+        weightsRatio = np.zeros(self.ensemble.numParticles)
+        for i in range(self.ensemble.numParticles):
+            oldH = 0.5 * jnp.dot(oldP[:, i], oldP[:, i]) / self.ensemble.mass[i] + self.potential(oldQ[:, i])
+            newH = 0.5 * jnp.dot(newP[:, i], newP[:, i]) / self.ensemble.mass[i] + self.potential(newQ[:, i])
+            weightsRatio[i] = jnp.exp(oldH - newH)
+        return weightsRatio
     
     def print_information(self):
         print('integrator: ', self.integrator)
@@ -127,8 +135,7 @@ class HMC:
             self.integrator.p = self.ensemble.setMomentum(temperature)
 
             oldQ = np.copy(self.integrator.q)
-            oldP = np.copy(self.integrator.p)
-            oldWeights = self.getWeights(self.integrator.q, self.integrator.p)    
+            oldP = np.copy(self.integrator.p) 
 
             # numerical solution for momenta and positions
 
@@ -137,9 +144,8 @@ class HMC:
             # flip momenta
             p = -p
 
-                            
-            proposedWeights = self.getWeights(q, p)    
-            ratio = proposedWeights/oldWeights
+                               
+            ratio = self.getWeightsRatio(q, p, oldQ, oldP)
 
 
             acceptanceProb = np.minimum(1, ratio)
