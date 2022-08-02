@@ -65,6 +65,7 @@ class HMC:
         return -jnp.log( self.density(q) )       
 
 
+<<<<<<< HEAD
     def initializeThermalDist(self, temperature, qStd):
         """
         @description:
@@ -87,6 +88,8 @@ class HMC:
         return q, p  
     
 
+=======
+>>>>>>> upstream/bugfix-HMC
     def getWeights(self, q, p):
         """
         @description:
@@ -110,49 +113,40 @@ class HMC:
         print('final integration time: ', self.simulTime)
         print('time step: ', self.stepSize)
 
-
-    def setMomementum(self, temperature):
-        """
-        @description:
-            Distribute momentum based on a thermal distribution.
-        
-         @parameters:        
-            temperature (float)
-        """        
-        # thermal distribution
-        pStd = np.sqrt(self.ensemble.mass * boltzmannConst * temperature)
-        p = norm.rvs(scale=pStd, size=(self.ensemble.numDimensions,
-            self.ensemble.numParticles))
-
-        return p
         
 
     def getSamples(self, numSamples, temperature, qStd):
         """
         @description:
             Get samples from HMC.
+<<<<<<< HEAD
         
+=======
+       
+>>>>>>> upstream/bugfix-HMC
          @parameters:        
             numSamples (int):
             temperature (float): Temperature used to set momentum.
             qStd (float): Standard deviation of initial positions.
         """                
-            
-        
+
         # to store samples generated during HMC iteration. 
         # This is an array of matrices, each matrix corresponds to an HMC sample
         samples_hmc = np.zeros((self.ensemble.numDimensions, self.ensemble.numParticles, numSamples))
         shape = samples_hmc.shape
-        # momentum_hmc = np.zeros_like(samples_hmc)
+      
+        momentum_hmc = np.zeros_like(samples_hmc)
+
         self.print_information()
-        self.integrator.q, self.integrator.p = self.initializeThermalDist(temperature, qStd)
+        self.integrator.q = self.ensemble.setQ(qStd)
 
         
         for i in range(numSamples):
             if i%100 == 0:            
                 print('HMC iteration ', i+1)
 
-            self.integrator.p = self.setMomementum(temperature)
+            self.integrator.p = self.ensemble.setP(temperature)
+
             oldQ = np.copy(self.integrator.q)
             oldP = np.copy(self.integrator.p)
             oldWeights = self.getWeights(self.integrator.q, self.integrator.p)    
@@ -184,11 +178,12 @@ class HMC:
             self.integrator.p[:, mask] = oldQ[:, mask]
             # update accepted moves
             samples_hmc[:, :, i] = self.integrator.q
-            # momentum_hmc[:, :, i] = self.integrator.p
+            momentum_hmc[:, :, i] = self.integrator.p
+
 
             # Is it a problem that we add the same point to samples twice if a proposal is rejected? I am not sure
             
-        return samples_hmc
+        return samples_hmc, momentum_hmc
     
 # toy examples to test HMC implementation on a 2D std Gaussian distribution
 def density(x):
