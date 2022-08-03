@@ -9,17 +9,40 @@ Created on Fri Jul 22 11:24:44 2022
 import numpy as np
 import jax.numpy as jnp
 from jax import grad
-
+from scipy.stats import norm
+from scipy.constants import Boltzmann as boltzmannConst
 from integrator import Leapfrog, StormerVerlet
+import jax
+
+jax.config.update("jax_enable_x64", True) # required or grad returns NaNs
+
 
 class HMC:
-    # def __init__(self, ensemble, samples, density, integrator, stepSize, finalTime, potential=None, gradient = None):
-    def __init__(self, ensemble, simulTime, stepSize, density, gradient=None, method='Leapfrog'):
+    """
+    @description:
+        Class with getSamples method.
+    """
+    def __init__(self, ensemble, simulTime, stepSize, density, potential=None, gradient=None, method='Leapfrog'):
+        """
+        @parameters:
+            ensemble (Ensemble):
+            simulTime (float): Duration of Hamiltonian simulation.
+            stepSize (float):
+            density (func): Probability density function taking position.
+            potential (func): Optional function equal to -ln(density)
+            gradient (func): Optional gradient of -ln(density(q))
+            method (str): 
+        """
         # we gather all information from the ensemble
         self.ensemble = ensemble
         self.simulTime = simulTime
         self.stepSize = stepSize
         self.density = density
+
+        if potential:
+            self.potential = potential
+        else:
+            self.potential = self.potentialFunc
 
 
         if gradient:
@@ -29,73 +52,123 @@ class HMC:
 
 
         if method == 'Leapfrog':
-            self.integrator = Leapfrog(ensemble, stepSize, simulTime, gradient)
+            self.integrator = Leapfrog(ensemble, stepSize, simulTime, self.gradient)
         elif method == 'Stormer-Verlet':
-            self.integrator = StormerVerlet(ensemble, stepSize, simulTime, gradient)
+            self.integrator = StormerVerlet(ensemble, stepSize, simulTime, self.gradient)
         else:
             raise ValueError('Invalid integration method selected.')
 
     
     # negative log potential energy, depends on position q only
     # U(x) = -log( p(x) ) 
-    def potential(self, q):    
-        '''
-        Get potential of i th particle
-        '''
-        return -jnp.log( self.density(q) )            
-    
-    def getWeights(self, q, p):   
+    def potentialFunc(self, q):
+        """
+        @description:
+            Get potential at position q.
+
+        @parameters:
+            self.density (func):
+            q (ndarray): Position
+        """
+        return -jnp.log( self.density(q) )       
+
+
+    def getWeights(self, q, p):
+        """
+        @description:
+            Get probabilistic weights of proposed position/momentum step.
+
+        @parameters:
+            q (ndarray): numDimensions x numParticles array
+            p (ndarray): numDimensions x numParticles array
+            self.mass (ndarray):
+            self.potential (func): Taking q[:, i]
+        """   
         weights = np.zeros(self.ensemble.numParticles)
         for i in range(self.ensemble.numParticles):
             # H = kinetic_energy + potential_energy
             H = 0.5 * jnp.dot(p[:, i], p[:, i]) / self.ensemble.mass[i] + self.potential(q[:, i])
             weights[i] = jnp.exp(-H)                    
         return weights
+
+    def getWeightsRatio(self, newQ, newP, oldQ, oldP):
+        weightsRatio = np.zeros(self.ensemble.numParticles)
+        for i in range(self.ensemble.numParticles):
+            oldH = 0.5 * jnp.dot(oldP[:, i], oldP[:, i]) / self.ensemble.mass[i] + self.potential(oldQ[:, i])
+            newH = 0.5 * jnp.dot(newP[:, i], newP[:, i]) / self.ensemble.mass[i] + self.potential(newQ[:, i])
+            weightsRatio[i] = jnp.exp(oldH - newH)
+        return weightsRatio
     
     def print_information(self):
         print('integrator: ', self.integrator)
-        print('final integration time: ', self.finalTime)
+        print('final integration time: ', self.simulTime)
         print('time step: ', self.stepSize)
-        print('total samples to compute: ', self.samples)
+
         
+
     def getSamples(self, numSamples, temperature, qStd):
-        
-        self.ensemble.initializeThermal(temperature, qStd)       
-        
+        """
+        @description:
+            Get samples from HMC.
+
+         @parameters:        
+            numSamples (int):
+            temperature (float): Temperature used to set momentum.
+            qStd (float): Standard deviation of initial positions.
+        """                
+
         # to store samples generated during HMC iteration. 
         # This is an array of matrices, each matrix corresponds to an HMC sample
-        samples_hmc = np.zeros((self.ensemble.numParticles, self.ensemble.numDimensions, numSamples))
+        samples_hmc = np.zeros((self.ensemble.numDimensions, self.ensemble.numParticles, numSamples))
+        shape = samples_hmc.shape
+      
+        momentum_hmc = np.zeros_like(samples_hmc)
+
         self.print_information()
+        self.integrator.q = self.ensemble.setPosition(qStd)
+
         
-        for i in range(self.samples):
+        for i in range(numSamples):
             if i%100 == 0:            
                 print('HMC iteration ', i+1)
-            
+
+            self.integrator.p = self.ensemble.setMomentum(temperature)
+
+            oldQ = np.copy(self.integrator.q)
+            oldP = np.copy(self.integrator.p) 
 
             # numerical solution for momenta and positions
 
-            p, q = integrator.integrate()
+            q, p = self.integrator.integrate()
             
             # flip momenta
-            newMomentum = -newMomentum
+            p = -p
 
-            oldWeights = self.getWeights(self.ensemble.q, self.ensemble.p)                 
-            proposedWeights = self.getWeights(q, p)    
-            ratio = proposedWeights/oldWeights
+                               
+            ratio = self.getWeightsRatio(q, p, oldQ, oldP)
+
 
             acceptanceProb = np.minimum(1, ratio)
-            
+
+
             u = np.random.uniform(size=self.ensemble.numParticles)
+
             
-            mask = u < acceptanceProb      
-            self.ensemble.q[:, mask] = newPosition[mask]
+            # keep updated position/momenta unless:
+            mask = u > acceptanceProb
+
+
+      
+            self.integrator.q[:, mask] = oldQ[:, mask]
+            self.integrator.p[:, mask] = oldQ[:, mask]
             # update accepted moves
-            samples_hmc[:, :, i] = self.ensemble.q
-            #print('------------')
+            samples_hmc[:, :, i] = self.integrator.q
+            momentum_hmc[:, :, i] = self.integrator.p
+
 
             # Is it a problem that we add the same point to samples twice if a proposal is rejected? I am not sure
             
-        return samples_hmc
+        return samples_hmc, momentum_hmc
     
 # toy examples to test HMC implementation on a 2D std Gaussian distribution
 def density(x):

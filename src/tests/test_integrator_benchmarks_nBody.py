@@ -41,7 +41,8 @@ NUM_ITERATIONS = 2
 
 ensemble1 = Ensemble(NUM_DIMENSIONS, NUM_PARTICLES)
 ensemble1.mass = MASS
-ensemble1.initializeThermal(TEMPERATURE, Q_STD)
+ensemble1.setMomentum(TEMPERATURE)
+ensemble1.setPosition(Q_STD)
 
 
 # create integrator
