@@ -1,9 +1,9 @@
-#!/usr/bin/env python3 
+#!/usr/bin/env python3
 
 import sys
-  
+
 # setting path
-sys.path.append('../')
+sys.path.append("../")
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,42 +14,45 @@ from ensemble import Ensemble
 
 
 def boltzmannDistribution(velocity, temperature, mass):
-    ''' Velocity boltzman distribution (for magnitude of velocity)
+    """Velocity boltzman distribution (for magnitude of velocity)
     https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution#Distribution_function
-    '''
+    """
     mOver2kt = mass / (2 * boltzmannConst * temperature)
-    prefactor1 = (mOver2kt / np.pi) ** (3/2)
-    prefactor2 = 4 * np.pi * velocity ** 2
-    return prefactor1 * prefactor2 * np.exp(- velocity ** 2 * mOver2kt)
+    prefactor1 = (mOver2kt / np.pi) ** (3 / 2)
+    prefactor2 = 4 * np.pi * velocity**2
+    return prefactor1 * prefactor2 * np.exp(-(velocity**2) * mOver2kt)
 
-def main( ):
+
+def main():
     numDimensions = 4
     numParticles = 100
 
     ensemble1 = Ensemble(numDimensions, numParticles)
 
     # expected output
-    qExp = np.zeros( numDimensions )
-    pExp = np.zeros( numDimensions )
+    qExp = np.zeros(numDimensions)
+    pExp = np.zeros(numDimensions)
     mExp = 0
     wExp = 0
 
-    q1, p1, m1, w1 = ensemble1.particle( 10 )
+    q1, p1, m1, w1 = ensemble1.particle(10)
 
-    if (qExp == q1).all( ) and (pExp == p1).all( ) and (mExp == m1).all( ) and \
-        (wExp == w1).all( ):
-        print('Test 1 passed.')
+    if (
+        (qExp == q1).all()
+        and (pExp == p1).all()
+        and (mExp == m1).all()
+        and (wExp == w1).all()
+    ):
+        print("Test 1 passed.")
 
     try:
         _ = ensemble1.particle(numParticles + 1)
-        print('Test 2 Failed')
-    except IndexError as error: 
+        print("Test 2 Failed")
+    except IndexError as error:
         print(error)
-        print('Test 2 Passed \n')
+        print("Test 2 Passed \n")
 
-
-
-    print('Testing initial velocities follow boltzman distribution.')
+    print("Testing initial velocities follow boltzman distribution.")
 
     numDimensions2 = 3
     numParticles2 = 1000
@@ -57,13 +60,13 @@ def main( ):
     constMass = 1e-27
     mass2 = np.ones(numParticles2) * constMass
     boltzmannDist2 = lambda velocity: boltzmannDistribution(
-        velocity, temperature2, constMass)
+        velocity, temperature2, constMass
+    )
 
     ensemble2 = Ensemble(numDimensions2, numParticles2)
     ensemble2.mass = mass2
     ensemble2.setMomentum(temperature2)
     ensemble2.setPosition(3)
-
 
     # fig = plt.figure()
     # ax = fig.add_subplot(111, projection='3d')
@@ -82,8 +85,5 @@ def main( ):
     plt.show()
 
 
-
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
