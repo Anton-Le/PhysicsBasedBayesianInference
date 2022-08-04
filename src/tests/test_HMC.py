@@ -53,10 +53,10 @@ def main():
     
     # integrator setup
     finalTime = 1
-    stepSize = 0.1
+    stepSize = 0.01
 
     # HMC setup 
-    numSamples = 100
+    numSamples = 20
     
     # generate and initialize ensemble
     ensemble1 = Ensemble(numDimensions, numParticles)

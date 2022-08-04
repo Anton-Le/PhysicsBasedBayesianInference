@@ -146,6 +146,7 @@ class HMC:
 
                                
             ratio = self.getWeightsRatio(q, p, oldQ, oldP)
+            print(f'{ratio=}')
 
 
             acceptanceProb = np.minimum(1, ratio)
