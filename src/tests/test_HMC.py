@@ -35,7 +35,7 @@ def potential(x):
 
 
 ########################
-def main():
+def test1():
     # ensemble setup
     numDimensions = 2
     numParticles = 1
@@ -106,6 +106,52 @@ def main():
     plt.legend(loc="upper right")
     plt.show()
 
+def test2():
+    numParticles = 50
+    numDimensions = 2
+    numIterations = 4
+    simulTime = 0.5
+    stepSize = 0.05
+    temperature = 300
+    qStd = 1
 
-if __name__ == "__main__":
-    hmcSamples = main()
+    ensemble2 = Ensemble(numDimensions, numParticles)
+
+    # PDF Setup
+    mean = jnp.ones(numDimensions) * 5
+    cov = jnp.array([[4, -3], [-3, 4]]) # random covariance matrix
+    densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov)
+    potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov)
+
+
+    hmcObject = HMC(ensemble2, simulTime, stepSize, densityFunc, potential=potentialFunc) # with shape (#D, #P, #I)
+    hmcSamples, _ = hmcObject.getSamples(numIterations, temperature, qStd)
+
+    numpySamples = np.random.multivariate_normal(mean, cov, size=numParticles*numIterations)
+
+
+
+    fig, ax = plt.subplots()
+
+    ax.plot(hmcSamples[0, 0, :], hmcSamples[1, 0, :],
+                label = "HMC", marker = '*', c='k', lw =0.2, ls ='-', markersize=4)
+
+    for particleNum in range(1, numParticles):
+        ax.plot(hmcSamples[0, particleNum, :], hmcSamples[1, particleNum, :],
+            marker = '*', c='k', lw =0.2, ls ='-', markersize=4)
+
+    ax.plot( numpySamples[:, 0], numpySamples[:, 1], label = "Numpy", 
+        marker = '.', c='r', lw =0.2, ls ='', markersize=4)
+
+
+    plt.title(r'Guassian with mean (5, 5)')
+    plt.xlabel(r'$x_{1}$')
+    plt.ylabel(r'$x_{2}$')
+    plt.legend(loc='upper right')
+    plt.show()
+    
+    
+            
+if __name__ == '__main__':
+    hmcSamples = test2() # change to test1 if desired
+
