@@ -13,7 +13,8 @@ from scipy.stats import norm
 from scipy.constants import k as boltzmannConst
 from potential import nBodyPotential
 
-class Ensemble( ):
+
+class Ensemble:
     """
     @description:
         Data structure containing information of an ensemble.
@@ -25,8 +26,8 @@ class Ensemble( ):
         """
         @description:
             Initialize ensemble object
-            
-        @parameters:        
+
+        @parameters:
             numDimensions (int)
             numParticles (int)
             potential (func): Function taking only q as argument returning array of
@@ -34,7 +35,6 @@ class Ensemble( ):
         """
         # If potential = None integrator runs N-body simulation.
 
-        
         self.numParticles = numParticles
         self.numDimensions = numDimensions
         self.q = np.zeros((numDimensions, numParticles))
@@ -43,18 +43,17 @@ class Ensemble( ):
         self.weights = np.zeros(numParticles)
 
     def __iter__(self):
-        '''
+        """
         @description:
             Allows for easy unpacking of ensemble object.
-        '''
+        """
         return self.q, self.p, self.mass, self.weights, self.potential
-
 
     # def setWeights(self, temperature):
     #     """
     #     @description:
     #         Set probabilistic weights.
-    #      @parameters:        
+    #      @parameters:
     #         temperature (float):
     #     """
     #     kineticEnergy = np.sum((self.p ** 2 / (2 * self.mass)), axis=0)
@@ -64,48 +63,52 @@ class Ensemble( ):
     def setPosition(self, qStd):
         """
         @description:
-            Distribute position with a normal distribution. 
-         @parameters:        
+            Distribute position with a normal distribution.
+         @parameters:
             mass (ndarray): Length of numParticles
             q_std (float): Standard deviation in positions.
         """
 
-        self.q = norm.rvs(scale=qStd,
-            size=(self.numDimensions, self.numParticles))
-        
-        return self.q
+        self.q = norm.rvs(
+            scale=qStd, size=(self.numDimensions, self.numParticles)
+        )
 
+        return self.q
 
     def setMomentum(self, temperature):
         """
         @description:
             Distribute momentum based on a thermal distribution.
-        
-         @parameters:        
+
+         @parameters:
             mass (ndarray): Length of numParticles
             temperature (float)
-        """        
+        """
         # thermal distribution
         pStd = np.sqrt(self.mass * boltzmannConst * temperature)
-        self.p = norm.rvs(scale=pStd, size=(self.numDimensions,
-            self.numParticles))
+        self.p = norm.rvs(
+            scale=pStd, size=(self.numDimensions, self.numParticles)
+        )
 
         return self.p
-
-
 
     def particle(self, particleNum):
         """
         @description:
             Return information about the particleNum th particle.
-         @parameters:        
+         @parameters:
             particleNum (int): Label of particle
-        """    
+        """
         if not 0 <= particleNum < self.numParticles:
 
-            raise IndexError(f'Index {particleNum} out of bounds. '\
-                f'numParticles={self.numParticles}') 
+            raise IndexError(
+                f"Index {particleNum} out of bounds. "
+                f"numParticles={self.numParticles}"
+            )
 
-        return self.q[:, particleNum], self.p[:, particleNum], \
-        self.mass[particleNum], self.weights[particleNum]
-
+        return (
+            self.q[:, particleNum],
+            self.p[:, particleNum],
+            self.mass[particleNum],
+            self.weights[particleNum],
+        )
