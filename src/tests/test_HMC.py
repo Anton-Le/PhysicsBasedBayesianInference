@@ -106,6 +106,7 @@ def test1():
     plt.legend(loc="upper right")
     plt.show()
 
+
 def test2():
     numParticles = 50
     numDimensions = 2
@@ -119,39 +120,60 @@ def test2():
 
     # PDF Setup
     mean = jnp.ones(numDimensions) * 5
-    cov = jnp.array([[4, -3], [-3, 4]]) # random covariance matrix
+    cov = jnp.array([[4, -3], [-3, 4]])  # random covariance matrix
     densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov)
     potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov)
 
-
-    hmcObject = HMC(ensemble2, simulTime, stepSize, densityFunc, potential=potentialFunc) # with shape (#D, #P, #I)
+    hmcObject = HMC(
+        ensemble2, simulTime, stepSize, densityFunc, potential=potentialFunc
+    )  # with shape (#D, #P, #I)
     hmcSamples, _ = hmcObject.getSamples(numIterations, temperature, qStd)
 
-    numpySamples = np.random.multivariate_normal(mean, cov, size=numParticles*numIterations)
-
-
+    numpySamples = np.random.multivariate_normal(
+        mean, cov, size=numParticles * numIterations
+    )
 
     fig, ax = plt.subplots()
 
-    ax.plot(hmcSamples[0, 0, :], hmcSamples[1, 0, :],
-                label = "HMC", marker = '*', c='k', lw =0.2, ls ='-', markersize=4)
+    ax.plot(
+        hmcSamples[0, 0, :],
+        hmcSamples[1, 0, :],
+        label="HMC",
+        marker="*",
+        c="k",
+        lw=0.2,
+        ls="-",
+        markersize=4,
+    )
 
     for particleNum in range(1, numParticles):
-        ax.plot(hmcSamples[0, particleNum, :], hmcSamples[1, particleNum, :],
-            marker = '*', c='k', lw =0.2, ls ='-', markersize=4)
+        ax.plot(
+            hmcSamples[0, particleNum, :],
+            hmcSamples[1, particleNum, :],
+            marker="*",
+            c="k",
+            lw=0.2,
+            ls="-",
+            markersize=4,
+        )
 
-    ax.plot( numpySamples[:, 0], numpySamples[:, 1], label = "Numpy", 
-        marker = '.', c='r', lw =0.2, ls ='', markersize=4)
+    ax.plot(
+        numpySamples[:, 0],
+        numpySamples[:, 1],
+        label="Numpy",
+        marker=".",
+        c="r",
+        lw=0.2,
+        ls="",
+        markersize=4,
+    )
 
-
-    plt.title(r'Guassian with mean (5, 5)')
-    plt.xlabel(r'$x_{1}$')
-    plt.ylabel(r'$x_{2}$')
-    plt.legend(loc='upper right')
+    plt.title(r"Guassian with mean (5, 5)")
+    plt.xlabel(r"$x_{1}$")
+    plt.ylabel(r"$x_{2}$")
+    plt.legend(loc="upper right")
     plt.show()
-    
-    
-            
-if __name__ == '__main__':
-    hmcSamples = test2() # change to test1 if desired
 
+
+if __name__ == "__main__":
+    hmcSamples = test2()  # change to test1 if desired
