@@ -108,11 +108,11 @@ def test1():
 
 
 def test2():
-    numParticles = 50
+    numParticles = 4
     numDimensions = 2
     numIterations = 4
     simulTime = 0.5
-    stepSize = 0.05
+    stepSize = 0.01
     temperature = 300
     qStd = 1
 

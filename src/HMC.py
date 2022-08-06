@@ -94,13 +94,13 @@ class HMC:
             self.mass (ndarray):
             self.potential (func): Taking q[:, i]
         """
-        weights = np.zeros(self.ensemble.numParticles)
+        weights = jnp.zeros(self.ensemble.numParticles)
         for i in range(self.ensemble.numParticles):
             # H = kinetic_energy + potential_energy
             H = 0.5 * jnp.dot(p[:, i], p[:, i]) / self.ensemble.mass[
                 i
             ] + self.potential(q[:, i])
-            weights[i] = jnp.exp(-H)
+            weights.at[i].set( jnp.exp(-H) )
         return weights
 
     def getWeightsRatio(self, newQ, newP, oldQ, oldP):
@@ -133,7 +133,7 @@ class HMC:
 
         # to store samples generated during HMC iteration.
         # This is an array of matrices, each matrix corresponds to an HMC sample
-        samples_hmc = np.zeros(
+        samples_hmc = jnp.zeros(
             (
                 self.ensemble.numDimensions,
                 self.ensemble.numParticles,
@@ -142,7 +142,7 @@ class HMC:
         )
         shape = samples_hmc.shape
 
-        momentum_hmc = np.zeros_like(samples_hmc)
+        momentum_hmc = jnp.zeros_like(samples_hmc)
 
         self.print_information()
         self.integrator.q = self.ensemble.setPosition(qStd)
@@ -153,8 +153,8 @@ class HMC:
 
             self.integrator.p = self.ensemble.setMomentum(temperature)
 
-            oldQ = np.copy(self.integrator.q)
-            oldP = np.copy(self.integrator.p)
+            oldQ = jnp.copy(self.integrator.q)
+            oldP = jnp.copy(self.integrator.p)
 
             # numerical solution for momenta and positions
 
@@ -165,18 +165,18 @@ class HMC:
 
             ratio = self.getWeightsRatio(q, p, oldQ, oldP)
 
-            acceptanceProb = np.minimum(1, ratio)
+            acceptanceProb = jnp.minimum(1, ratio)
 
             u = np.random.uniform(size=self.ensemble.numParticles)
 
             # keep updated position/momenta unless:
             mask = u > acceptanceProb
 
-            self.integrator.q[:, mask] = oldQ[:, mask]
-            self.integrator.p[:, mask] = oldQ[:, mask]
+            self.integrator.q.at[:, mask].set(oldQ[:, mask])
+            self.integrator.p.at[:, mask].set(oldQ[:, mask])
             # update accepted moves
-            samples_hmc[:, :, i] = self.integrator.q
-            momentum_hmc[:, :, i] = self.integrator.p
+            samples_hmc = samples_hmc.at[:, :, i].set(self.integrator.q)
+            momentum_hmc = momentum_hmc.at[:, :, i].set(self.integrator.p) 
 
             # Is it a problem that we add the same point to samples twice if a proposal is rejected? I am not sure
 

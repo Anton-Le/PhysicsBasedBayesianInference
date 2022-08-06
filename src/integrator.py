@@ -15,6 +15,13 @@ from scipy.optimize import approx_fprime
 from potential import getAccelNBody, nBodyPotential
 from scipy.constants import G  # for debug
 import numpy as np
+from functools import partial
+from jax import pmap
+import jax.numpy as jnp
+import jax
+
+import os
+os.environ["XLA_FLAGS"] = '--xla_force_host_platform_device_count=4' # for 4-core CPU
 
 
 class Integrator:
@@ -40,7 +47,7 @@ class Integrator:
         self.q = ensemble.q
         # initial momenta
         self.p = ensemble.p
-        self.mass = ensemble.mass
+        self.mass = ensemble.mass[None, :]
         # calculate initial velocities
         self.v = self.p / self.mass
         self.numParticles = ensemble.numParticles
@@ -54,41 +61,41 @@ class Integrator:
         self.gradient = gradient
 
         # save avoid expenseive numerical differentiation of nBody potential
-        if not gradient:
-            print(f"Gradient={gradient} - performing nBody simulation.")
-            self.getAccel = self.getAccelNBody
+    #     if not gradient:
+    #         print(f"Gradient={gradient} - performing nBody simulation.")
+    #         self.getAccel = self.getAccelNBody
 
-    def getAccel(self, i):
-        """
-        @description:
-            Get acceleration of the i th particle.
+    # def getAccel(self, q, mass):
+    #     """
+    #     @description:
+    #         Get acceleration of the i th particle.
 
-        @parameters:
-            self.q (ndarray): numDimensions x numParticles array
-            self.mass (ndarray):
-            self.potential (func):
-            self.dq (float):
-        """
+    #     @parameters:
+    #         self.q (ndarray): numDimensions x numParticles array
+    #         self.mass (ndarray):
+    #         self.potential (func):
+    #         self.dq (float):
+    #     """
 
-        return -self.gradient(self.q[:, i]) / self.mass[i]
+    #     return -self.gradient(self.q[:, i]) / self.mass[i]
 
-    def getAccelNBody(self, i):
-        """
-        @description:
-            Calculate acceleration of i th particle in N-body system.
+    # def getAccelNBody(self, i):
+    #     """
+    #     @description:
+    #         Calculate acceleration of i th particle in N-body system.
 
-        @parameters:
-            q (ndarray): numDimensions x numParticles array of positions
-            i (int): index
-            mass (ndarray): numParticles array of masses
-        """
-        return getAccelNBody(self.q, self.mass, i)
+    #     @parameters:
+    #         q (ndarray): numDimensions x numParticles array of positions
+    #         i (int): index
+    #         mass (ndarray): numParticles array of masses
+    #     """
+    #     return getAccelNBody(self.q, self.mass, i)
 
-    def integrate(self):
-        raise NotImplementedError(
-            "Integrator superclass doesn't specify \
-            integration method"
-        )
+    # def integrate(self):
+    #     raise NotImplementedError(
+    #         "Integrator superclass doesn't specify \
+    #         integration method"
+    #     )
 
 
 class Leapfrog(Integrator):
@@ -102,22 +109,7 @@ class Leapfrog(Integrator):
         @parameters:
         """
 
-        for i in range(self.numParticles):
-            self.v[:, i] = self.p[:, i] / self.mass[i]
-
-            currentAccel = self.getAccel(i)
-            # number of time steps consider on [initialTime, finalTime]
-
-            for j in range(self.numSteps):
-                self.q[:, i] += (
-                    self.v[:, i] * self.stepSize
-                    + 0.5 * currentAccel * self.stepSize**2
-                )
-                nextAccel = self.getAccel(i)
-                self.v[:, i] += 0.5 * (currentAccel + nextAccel) * self.stepSize
-                currentAccel = np.copy(nextAccel)
-
-            self.p[:, i] = self.v[:, i] * self.mass[i]
+        self.q, self.p = _leapfrog(self.stepSize, self.numSteps, self.gradient, self.q, self.p, self.mass)
 
         # return postion and momenta of all particles at finalTime
         return (self.q, self.p)
@@ -139,27 +131,67 @@ class StormerVerlet(Integrator):
         """
 
         # for each particle
-        for i in range(self.numParticles):
-            self.v[:, i] = self.p[:, i] / self.mass[i]
-
-            qPast = np.copy(self.q[:, i])
-            self.q[:, i] = (
-                self.q[:, i]
-                + self.v[:, i] * self.stepSize
-                + 0.5 * self.getAccel(i) * self.stepSize**2
-            )
-
-            # number of time steps consider on [initialTime, finalTime]
-            for j in range(self.numSteps):
-                temp = np.copy(self.q[:, i])
-                self.q[:, i] = (
-                    2 * self.q[:, i]
-                    - qPast
-                    + self.getAccel(i) * self.stepSize**2
-                )
-                qPast = np.copy(temp)
-
-            self.v[:, i] = (self.q[:, i] - qPast) / self.stepSize
-            self.p[:, i] = self.v[:, i] * self.mass[i]
-        # return postion and momenta of all particles at finalTime
+        self.q, self.p = _stormerVerlet(self.stepSize, self.numSteps, self.gradient, self.q, self.p, self.mass)
         return (self.q, self.p)
+
+
+# Helper Functions:
+
+@partial(pmap, static_broadcasted_argnums=(0, 1, 2), in_axes=1, out_axes=1)
+def _leapfrog(stepSize, numSteps, gradient, q, p, mass):
+    v = p / mass
+            
+    currentAccel = - gradient(q) / mass
+    # number of time steps consider on [initialTime, finalTime]
+
+    initial_val = (q, v, currentAccel)
+
+    body_func = lambda i, val: _leapfrogBodyFunc(i, val, stepSize, gradient, mass)
+
+    final_val = jax.lax.fori_loop(0, numSteps, body_func, initial_val)
+
+    q, v, _ = final_val
+
+    p = v * mass
+    return (q, p)
+
+
+def _leapfrogBodyFunc(i, val, stepSize, gradient, mass):
+    q, v, currentAccel = val
+    q = q + v * stepSize + 0.5 * currentAccel * stepSize ** 2
+    nextAccel = - gradient(q) / mass
+    v = v + 0.5 * (currentAccel + nextAccel) * stepSize
+    currentAccel = jnp.copy(nextAccel)
+    val = (q, v, currentAccel)
+    
+    return val
+
+
+@partial(pmap, static_broadcasted_argnums=(0, 1, 2), in_axes=1, out_axes=1)
+def _stormerVerlet(stepSize, numSteps, gradient, q, p, mass):
+    v = p / mass
+
+    qPast = jnp.copy(q)
+    q = q + v * stepSize - 0.5 * stepSize ** 2 * gradient(q) / mass
+
+    initial_val = (q, qPast)
+    
+    body_func = lambda i, val: _stormerVerletBodyFunc(i, val, stepSize, gradient, mass)
+
+    final_val = jax.lax.fori_loop(0, numSteps, body_func, initial_val)
+
+    q, qPast = final_val
+    v = (q - qPast) / stepSize
+    p = v * mass
+
+
+    return (q, p)
+
+
+def _stormerVerletBodyFunc(i, val, stepSize, gradient, mass):
+    q, qPast = val
+    temp = jnp.copy(q)
+    q = 2 * q - qPast - stepSize ** 2 * gradient(q) / mass
+    qPast = jnp.copy(temp)
+    val = (q, qPast)
+    return val
