@@ -13,8 +13,13 @@ momenta and positions for a N-particle system
 from ensemble import Ensemble
 from scipy.optimize import approx_fprime
 from potential import getAccelNBody, nBodyPotential
+<<<<<<< HEAD
 from scipy.constants import G  # for debug
 import numpy as np
+=======
+from scipy.constants import G # for debug
+import jax.numpy as jnp
+>>>>>>> origin/feature-jax
 
 
 class Integrator:
@@ -27,23 +32,15 @@ class Integrator:
         time.
     """
 
-    def __init__(self, ensemble, stepSize, finalTime, gradient):
-        """
+    def __init__(self, stepSize, finalTime, gradient):
+        '''
         @parameters:
             ensemble (Ensemble):
             stepSize (float):
             finalTime (float):
             gradient (func): Gradient of potential.
-        """
-        # initial positions
-        self.ensemble = ensemble
-        self.q = ensemble.q
-        # initial momenta
-        self.p = ensemble.p
-        self.mass = ensemble.mass
-        # calculate initial velocities
-        self.v = self.p / self.mass
-        self.numParticles = ensemble.numParticles
+
+        '''
         # step size for integrator
         self.stepSize = stepSize
         # final simulation time
@@ -54,35 +51,37 @@ class Integrator:
         self.gradient = gradient
 
         # save avoid expenseive numerical differentiation of nBody potential
-        if not gradient:
-            print(f"Gradient={gradient} - performing nBody simulation.")
-            self.getAccel = self.getAccelNBody
+        # if not gradient:
+        #     print(f'Gradient={gradient} - performing nBody simulation.')
+        #     self.getAccel = self.getAccelNBody
 
-    def getAccel(self, i):
-        """
-        @description:
-            Get acceleration of the i th particle.
 
-        @parameters:
-            self.q (ndarray): numDimensions x numParticles array
-            self.mass (ndarray):
-            self.potential (func):
-            self.dq (float):
-        """
+    # def getAccel(self, q, mass):
+    #     """
+    #     @description:
+    #         Get acceleration of the i th particle.
 
-        return -self.gradient(self.q[:, i]) / self.mass[i]
+    #     @parameters:
+    #         self.q (ndarray): numDimensions x numParticles array
+    #         self.mass (ndarray):
+    #         self.potential (func):
+    #         self.dq (float):
+    #     """
 
-    def getAccelNBody(self, i):
-        """
-        @description:
-            Calculate acceleration of i th particle in N-body system.
+    #     return  -self.gradient(q) / mass
 
-        @parameters:
-            q (ndarray): numDimensions x numParticles array of positions
-            i (int): index
-            mass (ndarray): numParticles array of masses
-        """
-        return getAccelNBody(self.q, self.mass, i)
+    # def getAccelNBody(self, i):
+    #     """
+    #     @description:
+    #         Calculate acceleration of i th particle in N-body system.
+            
+    #     @parameters:        
+    #         q (ndarray): numDimensions x numParticles array of positions
+    #         i (int): index
+    #         mass (ndarray): numParticles array of masses
+    #     """
+    #     return getAccelNBody(self.q, self.mass, i)
+            
 
     def integrate(self):
         raise NotImplementedError(
@@ -92,7 +91,7 @@ class Integrator:
 
 
 class Leapfrog(Integrator):
-    def integrate(self):
+    def integrate(self, p, q, mass):
         """
         @description:
             function to compute numerically positions and momenta for N particles
@@ -101,26 +100,22 @@ class Leapfrog(Integrator):
 
         @parameters:
         """
+        
+        v = p / mass
+            
+        currentAccel = - self.gradient(q) / mass
+        # number of time steps consider on [initialTime, finalTime]
 
-        for i in range(self.numParticles):
-            self.v[:, i] = self.p[:, i] / self.mass[i]
+        for j in range(self.numSteps):
+            q = q + v * self.stepSize + 0.5 * currentAccel * self.stepSize ** 2
+            nextAccel = - self.gradient(q) / mass
+            v = v + 0.5 * (currentAccel + nextAccel) * self.stepSize
+            currentAccel = jnp.copy(nextAccel)
 
-            currentAccel = self.getAccel(i)
-            # number of time steps consider on [initialTime, finalTime]
-
-            for j in range(self.numSteps):
-                self.q[:, i] += (
-                    self.v[:, i] * self.stepSize
-                    + 0.5 * currentAccel * self.stepSize**2
-                )
-                nextAccel = self.getAccel(i)
-                self.v[:, i] += 0.5 * (currentAccel + nextAccel) * self.stepSize
-                currentAccel = np.copy(nextAccel)
-
-            self.p[:, i] = self.v[:, i] * self.mass[i]
+        p = v * mass
 
         # return postion and momenta of all particles at finalTime
-        return (self.q, self.p)
+        return (q, p)
 
 
 class StormerVerlet(Integrator):
@@ -138,28 +133,20 @@ class StormerVerlet(Integrator):
             finalTime (float): final simulation time
         """
 
-        # for each particle
-        for i in range(self.numParticles):
-            self.v[:, i] = self.p[:, i] / self.mass[i]
+        v = p / mass
 
-            qPast = np.copy(self.q[:, i])
-            self.q[:, i] = (
-                self.q[:, i]
-                + self.v[:, i] * self.stepSize
-                + 0.5 * self.getAccel(i) * self.stepSize**2
-            )
 
-            # number of time steps consider on [initialTime, finalTime]
-            for j in range(self.numSteps):
-                temp = np.copy(self.q[:, i])
-                self.q[:, i] = (
-                    2 * self.q[:, i]
-                    - qPast
-                    + self.getAccel(i) * self.stepSize**2
-                )
-                qPast = np.copy(temp)
+        qPast = jnp.copy(q)
+        q = q + v * self.stepSize - 0.5 * self.stepSize ** 2 * self.gradient(q) / mass
 
-            self.v[:, i] = (self.q[:, i] - qPast) / self.stepSize
-            self.p[:, i] = self.v[:, i] * self.mass[i]
+        # number of time steps consider on [initialTime, finalTime]
+        for j in range(self.numSteps):
+            temp = jnp.copy(q)
+            q = 2 * q - qPast - self.stepSize ** 2 * self.gradient(q) / mass
+            qPast = jnp.copy(temp)
+
+
+        v = (q - qPast) / self.stepSize
+        p = v * mass
         # return postion and momenta of all particles at finalTime
-        return (self.q, self.p)
+        return (q, p)

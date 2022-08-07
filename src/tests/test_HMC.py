@@ -53,11 +53,17 @@ def test1():
 
     # integrator setup
     finalTime = 1
-    stepSize = 0.1
+    stepSize = 0.01
 
+<<<<<<< HEAD
     # HMC setup
     numSamples = 100
 
+=======
+    # HMC setup 
+    numSamples = 20
+    
+>>>>>>> origin/feature-jax
     # generate and initialize ensemble
     ensemble1 = Ensemble(numDimensions, numParticles)
 
