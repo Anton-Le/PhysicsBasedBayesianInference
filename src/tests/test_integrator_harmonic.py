@@ -25,9 +25,9 @@ harmonicGradient = grad(harmonicPotential)
 
 
 def harmonicOscillatorAnalytic(ensemble, finalTime, springConsts):
-    omega = np.outer(springConsts, 1 / ensemble.mass)
+    omega = np.outer(1 / ensemble.mass, springConsts)
     omega = np.sqrt(omega)
-    initialV = ensemble.p / ensemble.mass
+    initialV = ensemble.p / ensemble.mass[:, None]
     q = ensemble.q * np.cos(omega * finalTime) + initialV / omega * np.sin(
         omega * finalTime
     )
@@ -35,14 +35,13 @@ def harmonicOscillatorAnalytic(ensemble, finalTime, springConsts):
         omega * finalTime
     )
 
-    return (q, v * ensemble.mass)
+    return (q, v * ensemble.mass[:, None])
 
 
 def harmonic_test(stepSize, numParticles, method):
     dimension = 0  # choose dimension to print positions
     # ensemble variables
     numDimensions = 2  # must match len(springConsts)
-    numParticles = 10
     mass = 1
     temperature = 1000
     q_std = 10
@@ -59,7 +58,7 @@ def harmonic_test(stepSize, numParticles, method):
     mass = np.ones(numParticles) * mass
 
     # ensemble initialization
-    ensemble1 = Ensemble(numDimensions, numParticles)
+    ensemble1 = Ensemble(numParticles, numDimensions)
     ensemble1.mass = mass
     ensemble1.setPosition(q_std)
     ensemble1.setMomentum(temperature)
@@ -78,10 +77,13 @@ def harmonic_test(stepSize, numParticles, method):
         raise ValueError("Method must be 'Leapfrog' or 'Stormer-Verlet'")
 
     integrator = intMethod(stepSize, finalTime, harmonicGradient)
-    solver = 
+
+    q_num = np.zeros((numParticles, numDimensions))
+    p_num = np.zeros_like(q_num)
 
     # actual solution for position and momenta
-    q_num, p_num = sol_q_p.integrate()
+    for i in range(numParticles):
+        q_num[i], p_num[i] = integrator.integrate(q[i], p[i], mass[i])
 
     numSteps = int(finalTime / stepSize)
     q_ana, p_ana = harmonicOscillatorAnalytic(
@@ -89,21 +91,22 @@ def harmonic_test(stepSize, numParticles, method):
     )
 
     print("Numeric Solution:")
-    print(q_num[dimension])
+    print(q_num[:, dimension])
     print(30 * "#")
 
     print("Analytic Solution:")
-    print(q_ana[dimension])
+    print(q_ana[:, dimension])
     print(30 * "#")
 
-    return np.abs(q_num[dimension] - q_ana[dimension])
+    print(f'{q_num.shape=}')
+    return np.abs(q_num[:, dimension] - q_ana[:, dimension])
 
 
 def plotError():
     methods = ["Leapfrog", "Stormer-Verlet"]
-    numParticles = 5  # clearest with one particle
+    numParticles = 3  
     numDimensions = 1
-    stepSizes = np.logspace(-3, -1, 3)
+    stepSizes = np.logspace(-4, -1, 5)
     logStepSizes = np.log10(stepSizes)
     errors = np.zeros((len(stepSizes), numParticles))
 
