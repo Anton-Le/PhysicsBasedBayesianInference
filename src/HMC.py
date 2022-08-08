@@ -166,7 +166,9 @@ def _getSamplesBody(i, val, mass, self):
 
     p = self.setMomentum(subkey, mass)
 
+
     proposedQ, proposedP = self.integrator.integrate(q, p, mass)
+
 
     # flip momenta
 

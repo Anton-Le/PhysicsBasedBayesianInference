@@ -22,7 +22,6 @@ from functools import partial
 import os
 os.environ['XLA_FLAGS'] ='--xla_force_host_platform_device_count=4'
 
-
 class Integrator:
     """
     @description:
@@ -32,6 +31,7 @@ class Integrator:
         We do not store the solution at each time step, but the solution at final simulation
         time.
     """
+   
     def __init__(self, stepSize, finalTime, gradient):
         '''
         @parameters:
@@ -39,6 +39,7 @@ class Integrator:
             stepSize (float):
             finalTime (float):
             gradient (func): Gradient of potential.
+
         '''
         # step size for integrator
         self.stepSize = float(stepSize)
@@ -64,6 +65,7 @@ class Integrator:
             integration method')
 
 
+
     @partial(pmap, static_broadcasted_argnums=0)
     def pintegrate(self, q, p, mass):
         return self.integrate(q, p, mass)
@@ -71,6 +73,7 @@ class Integrator:
 
 class Leapfrog(Integrator):
     def integrate(self, q, p, mass):
+
         """
         @description:
             function to compute numerically positions and momenta for N particles
@@ -87,6 +90,7 @@ class Leapfrog(Integrator):
         currentAccel = - self.gradient(q) / mass
         # number of time steps consider on [initialTime, finalTime]
 
+
         initial_val = (q, v, currentAccel)
 
         body_func = lambda i, val: _leapfrogBodyFunc(i, val, self.stepSize, self.gradient, mass)
@@ -94,12 +98,11 @@ class Leapfrog(Integrator):
         final_val = jax.lax.fori_loop(0, self.numSteps, body_func, initial_val)
 
         q, v, _ = final_val
-
+        
         p = v * mass
 
         # return postion and momenta of all particles at finalTime
         return (q, p)
-
 
 
 class StormerVerlet(Integrator):
@@ -130,12 +133,13 @@ class StormerVerlet(Integrator):
 
         final_val = jax.lax.fori_loop(0, self.numSteps, body_func, initial_val)
 
+
         q, qPast = final_val
+
         v = (q - qPast) / self.stepSize
         p = v * mass
         # return postion and momenta of all particles at finalTime
         return (q, p)
-
 
 
 def _leapfrogBodyFunc(i, val, stepSize, gradient, mass):
@@ -154,3 +158,4 @@ def _stormerVerletBodyFunc(i, val, stepSize, gradient, mass):
     qPast = jnp.copy(temp)
     val = (q, qPast)
     return val
+

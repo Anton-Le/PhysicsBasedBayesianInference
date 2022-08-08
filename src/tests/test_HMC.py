@@ -35,6 +35,7 @@ def test1():
     densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov)
     potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov)
 
+
     numIterations = 100
     subkeys = jax.random.split(key, numParticles)
     simulTime = 1
@@ -42,6 +43,30 @@ def test1():
     temperature = 1 / Boltzmann 
     qStd = 3
     mass = jnp.ones(numParticles)
+
+    # HMC setup
+    numSamples = 100
+
+    # generate and initialize ensemble
+    ensemble1 = Ensemble(numDimensions, numParticles)
+
+    # HMC algorithm
+    hmcObject = HMC(
+        ensemble1, finalTime, stepSize, densityFunc, potential=potentialFunc
+    )
+    # hmcObject = HMC(ensemble1, finalTime, stepSize, densityFunc)
+    hmcSamples, _ = hmcObject.getSamples(numSamples, temperature, qStd)
+
+    # we test implementation on a 2D standard normal distribution
+    ## theoretical resulst for 2D standard Gaussian distribution
+    mean = np.zeros(numDimensions)
+    normal = np.zeros_like(hmcSamples)
+
+    for k in range(numSamples):
+        normal[:, :, k] = np.random.multivariate_normal(
+            mean, cov, size=numParticles
+        ).T
+
 
     # get samples from numpy 
     numpySamples = np.random.multivariate_normal(
