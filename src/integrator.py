@@ -19,6 +19,8 @@ import numpy as np
 import jax
 from jax import pmap
 from functools import partial
+import os
+os.environ['XLA_FLAGS'] ='--xla_force_host_platform_device_count=4'
 
 
 class Integrator:
@@ -57,17 +59,18 @@ class Integrator:
             (other.stepSize, other.finalTime, other.gradient, other.integrate))
 
             
-
-            
-
     def integrate(self):
         raise NotImplementedError('Integrator superclass doesn\'t specify \
             integration method')
 
 
+    @partial(pmap, static_broadcasted_argnums=0)
+    def pintegrate(self, q, p, mass):
+        return self.integrate(q, p, mass)
+
+
 class Leapfrog(Integrator):
-    # @partial(pmap, static_broadcasted_argnums=0)
-    def integrate(self, p, q, mass):
+    def integrate(self, q, p, mass):
         """
         @description:
             function to compute numerically positions and momenta for N particles
@@ -96,8 +99,8 @@ class Leapfrog(Integrator):
         return (q, p)
 
 
+
 class StormerVerlet(Integrator):
-    # @partial(pmap, static_broadcasted_argnums=0)
     def integrate(self, q, p, mass):
         """
         @description:
@@ -128,6 +131,8 @@ class StormerVerlet(Integrator):
         p = v * mass
         # return postion and momenta of all particles at finalTime
         return (q, p)
+
+
 
 def _leapfrogBodyFunc(i, val, stepSize, gradient, mass):
     q, v, currentAccel = val

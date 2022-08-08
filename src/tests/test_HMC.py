@@ -20,11 +20,11 @@ import jax
 from HMC import HMC
 
 
-jax.config.update("jax_enable_x64", True)  # avoid NaNs whilst calculating grads
+jax.config.update("jax_enable_x64", True) 
 
 
 def test1():
-    seed = 10
+    seed = 1000
     key = jax.random.PRNGKey(seed)
     numParticles = 4
     numDimensions = 2
@@ -35,10 +35,9 @@ def test1():
     densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov)
     potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov)
 
-    numIterations = 10000
-    _, *subkeys = jax.random.split(key, numParticles+1)
-    subkeys = jnp.array(subkeys)
-    simulTime = 0.5
+    numIterations = 100
+    subkeys = jax.random.split(key, numParticles)
+    simulTime = 1
     stepSize = 0.01        
     temperature = 1 / Boltzmann 
     qStd = 3
@@ -60,6 +59,7 @@ def test1():
         qStd,
         densityFunc,
         potential=potentialFunc,
+        method='Stormer-Verlet'
     )
 
     hmcSamples, _ = hmcObject.getSamples(numIterations, mass, subkeys)
@@ -79,8 +79,8 @@ def test1():
 
     for particleNum in range(1, numParticles):
         ax.plot(
-            hmcSamples[particleNum, 0, :],
-            hmcSamples[particleNum, 1, :],
+            hmcSamples[particleNum, 0],
+            hmcSamples[particleNum, 1],
             marker="*",
             c="k",
             lw=0.2,

@@ -12,11 +12,14 @@ sys.path.append("../")
 
 from ensemble import Ensemble
 from integrator import Leapfrog, StormerVerlet
+from scipy.constants import Boltzmann
 from potential import harmonicPotentialND
+import jax
 from jax import grad, pmap
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
+jax.config.update("jax_enable_x64", True)
 
 
 springConsts = np.array((2.0, 3.0))  # must be floats to work with grad
@@ -43,7 +46,7 @@ def harmonic_test(stepSize, numParticles, method):
     # ensemble variables
     numDimensions = 2  # must match len(springConsts)
     mass = 1
-    temperature = 1000
+    temperature = 10 / Boltzmann
     q_std = 10
 
     # integrator setup
@@ -82,23 +85,22 @@ def harmonic_test(stepSize, numParticles, method):
     p_num = np.zeros_like(q_num)
 
     # actual solution for position and momenta
-    for i in range(numParticles):
-        q_num[i], p_num[i] = integrator.integrate(q[i], p[i], mass[i])
+    q_num, p_num = integrator.pintegrate(q, p, mass)
 
     numSteps = int(finalTime / stepSize)
     q_ana, p_ana = harmonicOscillatorAnalytic(
         ensemble1, finalTime, springConsts
     )
 
-    print("Numeric Solution:")
-    print(q_num[:, dimension])
-    print(30 * "#")
+    # print("Numeric Solution:")
+    # print(q_num[:, dimension])
+    # print(30 * "#")
 
-    print("Analytic Solution:")
-    print(q_ana[:, dimension])
-    print(30 * "#")
+    # print("Analytic Solution:")
+    # print(q_ana[:, dimension])
+    # print(30 * "#")
 
-    print(f'{q_num.shape=}')
+    # print(f'{q_num.shape=}')
     return np.abs(q_num[:, dimension] - q_ana[:, dimension])
 
 
@@ -106,7 +108,7 @@ def plotError():
     methods = ["Leapfrog", "Stormer-Verlet"]
     numParticles = 3  
     numDimensions = 1
-    stepSizes = np.logspace(-4, -1, 5)
+    stepSizes = np.logspace(-7, -1, 10)
     logStepSizes = np.log10(stepSizes)
     errors = np.zeros((len(stepSizes), numParticles))
 
@@ -162,3 +164,5 @@ def freeParticleAnalytic(ensemble, numSteps, dt):
     q = ensemble.q * time * ensemble.p / ensemble.mass
 
     return q, ensemble.p
+
+

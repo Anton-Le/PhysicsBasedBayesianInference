@@ -145,8 +145,9 @@ class HMC:
         # This is an array of matrices, each matrix corresponds to an HMC sample
         samples = jnp.zeros((self.numDimensions, numIterations))
         momentums = jnp.zeros_like(samples)
+        key, subkey = jax.random.split(key)
 
-        q = jax.random.normal(key, shape=(self.numDimensions,)) * self.qStd
+        q = jax.random.normal(subkey, shape=(self.numDimensions,)) * self.qStd
 
         initialVal = (samples, momentums, q, key)
 
@@ -161,28 +162,29 @@ class HMC:
 def _getSamplesBody(i, val, mass, self):
     samples, momentums, q, key = val
 
-    _, key = jax.random.split(key) 
+    key, subkey = jax.random.split(key) 
 
-    p = self.setMomentum(key, mass)
+    p = self.setMomentum(subkey, mass)
 
-    proposedQ, proposedP = self.integrator.integrate(p, q, mass)
+    proposedQ, proposedP = self.integrator.integrate(q, p, mass)
 
     # flip momenta
-    p = -p
 
     ratio = self.getWeightRatio(proposedQ, proposedP, q, p, mass)
 
+
     acceptanceProb = jnp.minimum(1, ratio)
 
+    key, subkey = jax.random.split(key) 
 
-    _, key = jax.random.split(key) 
 
-    q, p = jax.lax.cond(
-                jax.random.uniform(key) < acceptanceProb,                   # condition
-                lambda q, p, proposedQ, proposedP: (proposedQ, proposedP),  # if True
-                lambda q, p, proposedQ, proposedP: (q, p),                  # if False
-                q, p, proposedQ, proposedP                                  # arguments
-                )
+    q, p = jnp.where(
+        jax.random.uniform(subkey) < acceptanceProb,
+        jnp.array([proposedQ, proposedP]),
+        jnp.array([q, p]),
+        )
+
+    p = -p
 
     
     # update accepted moves
@@ -192,3 +194,4 @@ def _getSamplesBody(i, val, mass, self):
     val = (samples, momentums, q, key)
 
     return val
+
