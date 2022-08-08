@@ -13,7 +13,7 @@ sys.path.append("../")
 from ensemble import Ensemble
 from integrator import Leapfrog, StormerVerlet
 from potential import harmonicPotentialND
-from jax import grad
+from jax import grad, pmap
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
@@ -42,6 +42,7 @@ def harmonic_test(stepSize, numParticles, method):
     dimension = 0  # choose dimension to print positions
     # ensemble variables
     numDimensions = 2  # must match len(springConsts)
+    numParticles = 10
     mass = 1
     temperature = 1000
     q_std = 10
@@ -62,6 +63,7 @@ def harmonic_test(stepSize, numParticles, method):
     ensemble1.mass = mass
     ensemble1.setPosition(q_std)
     ensemble1.setMomentum(temperature)
+    q, p = ensemble1.q, ensemble1.p
 
     print("Initial conditions:")
     print(ensemble1.q[dimension])
@@ -69,13 +71,14 @@ def harmonic_test(stepSize, numParticles, method):
 
     # object of class Integrator - CHANGE IF DESIRED
     if method == "Leapfrog":
-        sol_q_p = Leapfrog(ensemble1, stepSize, finalTime, harmonicGradient)
+        intMethod = Leapfrog
     elif method == "Stormer-Verlet":
-        sol_q_p = StormerVerlet(
-            ensemble1, stepSize, finalTime, harmonicGradient
-        )
+        intMethod = StormerVerlet
     else:
         raise ValueError("Method must be 'Leapfrog' or 'Stormer-Verlet'")
+
+    integrator = intMethod(stepSize, finalTime, harmonicGradient)
+    solver = 
 
     # actual solution for position and momenta
     q_num, p_num = sol_q_p.integrate()
