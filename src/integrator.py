@@ -79,7 +79,9 @@ class Leapfrog(Integrator):
 
         @parameters:
         """
-        
+        q = jnp.copy(q)
+        p = jnp.copy(p)
+
         v = p / mass
             
         currentAccel = - self.gradient(q) / mass
@@ -114,6 +116,8 @@ class StormerVerlet(Integrator):
             stepSize (float): step size for numerical integrator
             finalTime (float): final simulation time
         """
+        q = jnp.copy(q)
+        p = jnp.copy(p)
 
         v = p / mass
 
