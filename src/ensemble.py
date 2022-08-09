@@ -86,9 +86,6 @@ class Ensemble:
         """
         # thermal distribution
         pStd = np.sqrt(self.mass * boltzmannConst * temperature)
-        print(f'{self.p.shape=}')
-        print(f'{pStd.shape=}')
-        print((self.numParticles, self.numDimensions))
         self.p = norm.rvs(
             scale=pStd[:, None], size=(self.numParticles, self.numDimensions)
         )
