@@ -4,7 +4,7 @@
 """
 Created on Sun Jul 24 12:44:20 2022
 
-@author: thomas
+@author: bruno, thomas
 """
 import sys
 
