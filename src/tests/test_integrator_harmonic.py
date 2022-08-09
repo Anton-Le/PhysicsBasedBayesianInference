@@ -46,7 +46,7 @@ def harmonic_test(stepSize, numParticles, method):
     # ensemble variables
     numDimensions = 2  # must match len(springConsts)
     mass = 1
-    temperature = 10 / Boltzmann
+    temperature = 1
     q_std = 10
 
     # integrator setup
@@ -56,7 +56,7 @@ def harmonic_test(stepSize, numParticles, method):
         2 * np.pi / omega1stDimension
     )  # choose period to check validity of analytical solution.
     finalTime = period1stDimension  # After 1 (1st dimension) period positions/momenta should be the same in 1st dimension
-    print(f"Duration: {finalTime}")
+
 
     mass = np.ones(numParticles) * mass
 
@@ -67,9 +67,6 @@ def harmonic_test(stepSize, numParticles, method):
     ensemble1.setMomentum(temperature)
     q, p = ensemble1.q, ensemble1.p
 
-    print("Initial conditions:")
-    print(ensemble1.q[dimension])
-    print(30 * "#")
 
     # object of class Integrator - CHANGE IF DESIRED
     if method == "Leapfrog":
@@ -92,15 +89,6 @@ def harmonic_test(stepSize, numParticles, method):
         ensemble1, finalTime, springConsts
     )
 
-    # print("Numeric Solution:")
-    # print(q_num[:, dimension])
-    # print(30 * "#")
-
-    # print("Analytic Solution:")
-    # print(q_ana[:, dimension])
-    # print(30 * "#")
-
-    # print(f'{q_num.shape=}')
     return np.abs(q_num[:, dimension] - q_ana[:, dimension])
 
 
@@ -108,7 +96,7 @@ def plotError():
     methods = ["Leapfrog", "Stormer-Verlet"]
     numParticles = 3  
     numDimensions = 1
-    stepSizes = np.logspace(-7, -1, 10)
+    stepSizes = np.logspace(-7, -1, 14)
     logStepSizes = np.log10(stepSizes)
     errors = np.zeros((len(stepSizes), numParticles))
 
