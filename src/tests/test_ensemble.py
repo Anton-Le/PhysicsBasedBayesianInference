@@ -53,7 +53,7 @@ def main():
     # expected output
     qExp = np.zeros(numDimensions)
     pExp = np.zeros(numDimensions)
-    mExp = 1.0#0.0
+    mExp = 1.0
     wExp = 0.0
 
     test_init()
@@ -82,7 +82,7 @@ def main():
     ensemble2.setPosition(3)
 
     momentum = ensemble2.p
-    momentumMagnitudes = np.linalg.norm(momentum, axis=0)
+    momentumMagnitudes = np.linalg.norm(momentum, axis=1)
     velocityMagnitudes = momentumMagnitudes / mass2
     vLinspace = np.linspace(0, max(velocityMagnitudes), 100)
     freq = boltzmannDist2(vLinspace)
