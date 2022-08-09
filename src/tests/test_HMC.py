@@ -4,7 +4,7 @@
 """
 Created on Sun Jul 24 12:44:20 2022
 
-@author: bruno
+@author: thomas
 """
 import sys
 
@@ -17,106 +17,17 @@ from matplotlib import pyplot as plt
 from scipy.constants import Boltzmann
 from jax.scipy.stats import multivariate_normal
 import jax
-from ensemble import Ensemble
 from HMC import HMC
 
 
-jax.config.update("jax_enable_x64", True)  # avoid NaNs whilst calculating grads
+jax.config.update("jax_enable_x64", True) 
 
 
-# this is the density we want to sample from
-def density(x):
-    return jnp.exp(-0.50 * jnp.linalg.norm(x) ** 2) / jnp.sqrt(2 * jnp.pi)
-
-
-# potential equals -log(density)
-def potential(x):
-    return -jnp.log(density(x))
-
-
-########################
 def test1():
-    # ensemble setup
+    seed = 1000
+    key = jax.random.PRNGKey(seed)
+    numParticles = 4
     numDimensions = 2
-    numParticles = 1
-    temperature = 1 / Boltzmann
-
-    # PDF Setup
-    mean = jnp.zeros(numDimensions)
-    cov = np.random.uniform(size=(2, 2))  # random covariance matrix
-    cov = np.dot(cov, cov.T)  # variance must be positive
-    densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov)
-    potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov)
-
-    # ensemble setip cont.
-    qStd = 1  # If qStd is large and min(cov) is small NaNs frequently occur.
-
-    # integrator setup
-    finalTime = 1
-    stepSize = 0.1
-
-    # HMC setup
-    numSamples = 100
-
-    # generate and initialize ensemble
-    ensemble1 = Ensemble(numDimensions, numParticles)
-
-    # HMC algorithm
-    hmcObject = HMC(
-        ensemble1, finalTime, stepSize, densityFunc, potential=potentialFunc
-    )
-    # hmcObject = HMC(ensemble1, finalTime, stepSize, densityFunc)
-    hmcSamples, _ = hmcObject.getSamples(numSamples, temperature, qStd)
-
-    # we test implementation on a 2D standard normal distribution
-    ## theoretical resulst for 2D standard Gaussian distribution
-    mean = np.zeros(numDimensions)
-    normal = np.zeros_like(hmcSamples)
-
-    for k in range(numSamples):
-        normal[:, :, k] = np.random.multivariate_normal(
-            mean, cov, size=numParticles
-        ).T
-
-    # plot results normal distribution
-    fig, ax = plt.subplots()
-    ax.plot(
-        hmcSamples[0, 0, :],
-        hmcSamples[1, 0, :],
-        label="HMC",
-        marker="*",
-        c="k",
-        lw=0.2,
-        ls="-",
-        markersize=4,
-    )
-    ax.plot(
-        normal[0, 0, :],
-        normal[1, 0, :],
-        label="theoretical",
-        marker=".",
-        c="r",
-        lw=0.2,
-        ls="-",
-        markersize=4,
-    )
-    plt.title(r"2D standard Gaussian")
-    plt.xlabel(r"$x_{1}$")
-    plt.ylabel(r"$x_{2}$")
-    plt.legend(loc="upper right")
-    plt.show()
-
-
-def test2():
-    numParticles = 50
-    numDimensions = 2
-    numIterations = 4
-    simulTime = 0.5
-    stepSize = 0.05
-    temperature = 300
-    qStd = 1
-
-    ensemble2 = Ensemble(numDimensions, numParticles)
 
     # PDF Setup
     mean = jnp.ones(numDimensions) * 5
@@ -124,20 +35,40 @@ def test2():
     densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov)
     potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov)
 
-    hmcObject = HMC(
-        ensemble2, simulTime, stepSize, densityFunc, potential=potentialFunc
-    )  # with shape (#D, #P, #I)
-    hmcSamples, _ = hmcObject.getSamples(numIterations, temperature, qStd)
+    numIterations = 100
+    subkeys = jax.random.split(key, numParticles)
+    simulTime = 1
+    stepSize = 0.01        
+    temperature = 1 / Boltzmann 
+    qStd = 3
+    mass = jnp.ones(numParticles)
 
+    # get samples from numpy 
     numpySamples = np.random.multivariate_normal(
         mean, cov, size=numParticles * numIterations
     )
 
+
+    # get samples from HMC
+
+    hmcObject = HMC(
+        numDimensions,
+        simulTime,
+        stepSize,        
+        temperature, 
+        qStd,
+        densityFunc,
+        potential=potentialFunc,
+        method='Stormer-Verlet'
+    )
+
+    hmcSamples, _ = hmcObject.getSamples(numIterations, mass, subkeys)
+
     fig, ax = plt.subplots()
 
     ax.plot(
-        hmcSamples[0, 0, :],
-        hmcSamples[1, 0, :],
+        hmcSamples[0, 0],
+        hmcSamples[0, 1],
         label="HMC",
         marker="*",
         c="k",
@@ -148,8 +79,8 @@ def test2():
 
     for particleNum in range(1, numParticles):
         ax.plot(
-            hmcSamples[0, particleNum, :],
-            hmcSamples[1, particleNum, :],
+            hmcSamples[particleNum, 0],
+            hmcSamples[particleNum, 1],
             marker="*",
             c="k",
             lw=0.2,
@@ -176,4 +107,4 @@ def test2():
 
 
 if __name__ == "__main__":
-    hmcSamples = test2()  # change to test1 if desired
+    hmcSamples = test1()  # change to test1 if desired
