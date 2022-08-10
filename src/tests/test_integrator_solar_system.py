@@ -71,12 +71,14 @@ for i in range(numIterations):
 fig = plt.figure()
 ax = plt.axes(projection="3d")
 
-for particleNum in range(numParticles):
+for particleNum, name in enumerate(['Earth', 'Sun', 'Moon']):
     x = points[0, particleNum, :]
     y = points[1, particleNum, :]
     z = points[2, particleNum, :]
     print(x, y, z)
-    ax.plot3D(x, y, z)
+    ax.plot3D(x, y, z, label=name)
 
+
+fig.legend()
 # fig.savefig(f'{method}SolarSystem.png')
 plt.show()
