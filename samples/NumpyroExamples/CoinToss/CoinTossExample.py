@@ -107,3 +107,57 @@ dictGrad = jax.grad(
 print("Gradient (as a dictionary) for the reference parameters: ", dictGrad)
 
 # As expected for the bias values that were chosen to generate the data the gradient vanishes.
+
+# Testing transformations from the real line onto the support of the distribution
+
+testParamDict = {'p1':-10.0,'p2':0.5}
+
+# Map/constrain the parameters onto the support of the model distribution
+
+constrainedParams = numpyro.infer.util.constrain_fn(
+                model,
+                (),
+                {"c1": np.array(data["c1"]), "c2": np.array(data["c2"])},
+                testParamDict
+                )
+
+print(" Unconstrained parameters: ", testParamDict)
+print(" Constrained parameters: ", constrainedParams)
+# Testing the computation of the jacobian
+
+Jacobian = jax.jacfwd(
+                lambda x: numpyro.infer.util.constrain_fn(
+        model,
+        (),
+        {"c1": np.array(data["c1"]), "c2": np.array(data["c2"])},
+        x
+       )
+                )(testParamDict)
+
+print("Jacobian of the parameter transform: ", Jacobian)
+
+# Compute the gradient on the support of the model
+# and then transform it to the real line
+
+constrainedGradient = jax.grad(
+    lambda x: numpyro.infer.util.log_density(
+        model, (),
+        {"c1": np.array(data["c1"]), "c2": np.array(data["c2"])},
+        x
+    )[0]
+)( constrainedParams )
+
+print("Gradient on constrained domain: ", constrainedGradient)
+# Transform in accordance with the notes: grad_u = J^t * grad_c
+
+unconstrainedGradient = {}.fromkeys( constrainedGradient.keys() )
+
+# iterate over the keys of the unconstrained
+
+for key in unconstrainedGradient.keys():
+    val = 0.0
+    for c_key in constrainedGradient.keys():
+        val += constrainedGradient[c_key] * Jacobian[c_key][key]
+    unconstrainedGradient[key] = val;
+
+print("Gradient on unconstrained domain: ", unconstrainedGradient)
