@@ -4,6 +4,8 @@ import jax
 import numpy as np
 import json
 
+
+
 numpyro.set_platform("cpu")
 
 
@@ -19,12 +21,12 @@ print(cpus)
 
 # prepend the path to the model
 sys.path.append('../../samples/NumpyroExamples/CoinToss')
-sys.path.append('..')
+sys.path.append('../')
 
 # Import the model and the converter
 from CoinToss import coin_toss
 from converters import Converter
-
+from potential import statisticalModelPotential, statisticalModelGradient
 # Load the observed outcomes and the reference biases
 data = json.load(open("../../samples/NumpyroExamples/CoinToss/CoinToss.data.json"))
 
@@ -68,3 +70,13 @@ for i in range(convertedVector.size):
 print("Array conversion succesful!")
 print("Reference: ", parameterVector)
 print("Obtained: ", convertedVector)
+
+# testing the potential functions
+
+potentialValue = statisticalModelPotential(model, parameterVector, typeConverter, (), modelDataDictionary)
+
+print("Computed potential value :", potentialValue)
+
+grad = statisticalModelGradient(model, parameterVector, typeConverter, (), modelDataDictionary)
+
+print("Computed gradient :", grad)

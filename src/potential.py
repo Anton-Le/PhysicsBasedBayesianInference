@@ -13,7 +13,8 @@ import jax.numpy as jnp
 from scipy.constants import G as gravConst
 from numbers import Real  # check if variable is number
 from scipy.optimize import approx_fprime
-
+import numpyro
+import jax
 
 def harmonicPotentialND(q, springConsts):
     """
@@ -140,3 +141,31 @@ def getForceArray(q, potentialFunc, dq):
 
 def noPotential(q):
     return 0
+
+def statisticalModelPotential(model, position, converter, modelArgs, modelKwargs):
+    """
+    @description:
+        The function is used to provide the potential value
+        for a stochastic model using unconstrained positions.
+    @parameters:
+        model ( function ) : probabilistic model
+        position (ndarray): numDimensions x numParticles array of positions
+        converter ( Converter ): Converter object to convert arrays to dictionaries
+    """
+    return -numpyro.infer.util.log_density(
+                model,
+                modelArgs, 
+                modelKwargs,
+                converter.toDict(position),
+                )[0]
+
+def statisticalModelGradient(model, position, converter, modelArgs, modelKwargs):
+    dictGrad = jax.grad(
+                lambda x: numpyro.infer.util.log_density(
+                model,
+                modelArgs,
+                modelKwargs,
+                x)[0]
+                )( converter.toDict(position) )
+    return converter.toArray(dictGrad)
+
