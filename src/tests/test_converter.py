@@ -5,7 +5,6 @@ import numpy as np
 import json
 
 
-
 numpyro.set_platform("cpu")
 
 
@@ -20,26 +19,26 @@ print(cpus)
 
 
 # prepend the path to the model
-sys.path.append('../../samples/NumpyroExamples/CoinToss')
-sys.path.append('../')
+sys.path.append("../../samples/NumpyroExamples/CoinToss")
+sys.path.append("../")
 
 # Import the model and the converter
 from CoinToss import coin_toss
 from converters import Converter
-from potential import statisticalModelPotential, statisticalModelGradient
+from potential import statisticalModelPotential, statisticalModelGradient, statisticalModel
+
 # Load the observed outcomes and the reference biases
-data = json.load(open("../../samples/NumpyroExamples/CoinToss/CoinToss.data.json"))
+data = json.load(
+    open("../../samples/NumpyroExamples/CoinToss/CoinToss.data.json")
+)
 
 # store the user-provided 'true' values of the biases
 p1_reference = float(data["p1"])
 p2_reference = float(data["p2"])
 
-referenceParameterDictionary = {'p1': p1_reference,
-                                'p2': p2_reference
-                                }
-modelDataDictionary = { 'c1': np.array(data["c1"]),
-                        'c2': np.array(data["c2"])}
-parameterVector = np.array([ p1_reference, p2_reference])
+referenceParameterDictionary = {"p1": p1_reference, "p2": p2_reference}
+modelDataDictionary = {"c1": np.array(data["c1"]), "c2": np.array(data["c2"])}
+parameterVector = np.array([p1_reference, p2_reference])
 
 # Prepare the kernel and run
 model = coin_toss
@@ -53,7 +52,9 @@ typeConverter = Converter(model, (), modelDataDictionary)
 convertedDictionary = typeConverter.toDict(parameterVector)
 
 for key in convertedDictionary.keys():
-    assert convertedDictionary[key] == referenceParameterDictionary[key], "Dictionary elements not identical"
+    assert (
+        convertedDictionary[key] == referenceParameterDictionary[key]
+    ), "Dictionary elements not identical"
 
 print("Dictionary conversion successful!")
 print("Reference: ", referenceParameterDictionary)
@@ -61,7 +62,9 @@ print("Obtained: ", convertedDictionary)
 
 convertedVector = typeConverter.toArray(referenceParameterDictionary)
 
-assert convertedVector.size == parameterVector.size, "Vector sizes do not match for converted vector!"
+assert (
+    convertedVector.size == parameterVector.size
+), "Vector sizes do not match for converted vector!"
 
 for i in range(convertedVector.size):
     assert convertedVector[i] == parameterVector[i], "Vector elements differ"
@@ -73,10 +76,27 @@ print("Obtained: ", convertedVector)
 
 # testing the potential functions
 
-potentialValue = statisticalModelPotential(model, parameterVector, typeConverter, (), modelDataDictionary)
+potentialValue = statisticalModelPotential(
+    model, parameterVector, typeConverter, (), modelDataDictionary
+)
 
 print("Computed potential value :", potentialValue)
 
-grad = statisticalModelGradient(model, parameterVector, typeConverter, (), modelDataDictionary)
+grad = statisticalModelGradient(
+    model, parameterVector, typeConverter, (), modelDataDictionary
+)
 
 print("Computed gradient :", grad)
+
+# perform the same test with the statisticalModel class
+
+statModel = statisticalModel(model, (), modelDataDictionary)
+
+potentialValue = statModel.potential(parameterVector)
+
+print("Potential value computed with the model class: ", potentialValue)
+
+grad = statModel.grad(parameterVector)
+
+print("Gradient computed with the model class: ", grad)
+
