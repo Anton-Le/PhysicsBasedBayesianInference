@@ -37,6 +37,7 @@ def test1():
     potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov)
 
     numIterations = 30
+
     subkeys = jax.random.split(key, numParticles)
     simulTime = 1
     stepSize = 0.01        
@@ -48,7 +49,6 @@ def test1():
     numpySamples = np.random.multivariate_normal(
         mean, cov, size=numParticles * numIterations
     )
-
 
     # get samples from HMC
 
