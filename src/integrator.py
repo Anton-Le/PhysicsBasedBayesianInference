@@ -17,7 +17,7 @@ from scipy.constants import G # for debug
 import jax.numpy as jnp
 import numpy as np
 import jax
-from jax import pmap
+from jax import pmap, vmap
 from functools import partial
 import os
 os.environ['XLA_FLAGS'] ='--xla_force_host_platform_device_count=4'
@@ -64,9 +64,10 @@ class Integrator:
             integration method')
 
 
-    @partial(pmap, static_broadcasted_argnums=0)
+    #@partial(vmap, in_axes=0, out_axes=0)#, static_broadcasted_argnums=0)
     def pintegrate(self, q, p, mass):
-        return self.integrate(q, p, mass)
+        f = jax.vmap(self.integrate, in_axes=0, out_axes=0)
+        return f(q, p, mass)
 
 
 class Leapfrog(Integrator):
