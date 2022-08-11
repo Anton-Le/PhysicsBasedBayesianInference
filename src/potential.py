@@ -13,7 +13,9 @@ import jax.numpy as jnp
 from scipy.constants import G as gravConst
 from numbers import Real  # check if variable is number
 from scipy.optimize import approx_fprime
-
+import numpyro
+import jax
+from converters import Converter
 
 def harmonicPotentialND(q, springConsts):
     """
@@ -140,3 +142,94 @@ def getForceArray(q, potentialFunc, dq):
 
 def noPotential(q):
     return 0
+
+
+def statisticalModelPotential(
+    model, position, converter, modelArgs, modelKwargs
+):
+    """
+    @description:
+        The function is used to provide the potential value
+        for a stochastic model using unconstrained positions.
+    @parameters:
+        model ( function ) : probabilistic model
+        position (ndarray): numDimensions x numParticles array of positions
+        converter ( Converter ): Converter object to convert arrays to dictionaries
+    """
+    return -numpyro.infer.util.log_density(
+        model,
+        modelArgs,
+        modelKwargs,
+        converter.toDict(position),
+    )[0]
+
+
+def statisticalModelGradient(
+    model, position, converter, modelArgs, modelKwargs
+):
+    dictGrad = jax.grad(
+        lambda x: numpyro.infer.util.log_density(
+            model, modelArgs, modelKwargs, x
+        )[0]
+    )(converter.toDict(position))
+    return converter.toArray(dictGrad)
+
+
+class statisticalModel:
+    def __init__(self, model, modelArgs, modelKwargs):
+        self.converter = Converter(model, modelArgs, modelKwargs)
+        self.modelArgs = modelArgs
+        self.modelKwargs = modelKwargs
+        self.model = model
+        self.Jacobi = None
+        # create a constraint function
+        self.constraint_fn = lambda x: numpyro.infer.util.constrain_fn(
+            self.model, self.modelArgs, self.modelKwargs, x
+        )
+        self.Jacobi = lambda y: jax.jacfwd(self.constraint_fn)(y)
+
+    def potential(self, position):
+        """
+        @description:
+            This function is used to compute the potential value
+            for a stochastic model using unconstrained positions
+            as inputs.
+        """
+        # convert vector to dictionary
+        dictPosition = self.converter.toDict(position)
+        mappedPositions = self.constraint_fn(dictPosition)
+        return -numpyro.infer.util.log_density(
+            self.model,
+            self.modelArgs,
+            self.modelKwargs,
+            mappedPositions,
+        )[0]
+
+    def grad(self, position):
+        """
+        @description:
+            The function provides the gradient of the model potential
+            on the unconstrained domain provided unconstrained positions.
+        """
+        # convert vector to dictionary
+        dictPosition = self.converter.toDict(position)
+        mappedPositions = self.constraint_fn(dictPosition)
+        del dictPosition
+        # compute the gradient at the mapped coordinates
+        dictGrad = jax.grad(
+            lambda x: numpyro.infer.util.log_density(
+                self.model, self.modelArgs, self.modelKwargs, x
+            )[0]
+        )(mappedPositions)
+        # compute the Jacobi matrix of the transform
+        J = self.Jacobi(mappedPositions)
+        unconstrainedGradient = {}.fromkeys(dictGrad.keys())
+        # iterate over the keys of the unconstrained
+        for key in unconstrainedGradient.keys():
+            val = 0.0
+            for c_key in dictGrad.keys():
+                val += dictGrad[c_key] * J[c_key][key]
+                unconstrainedGradient[key] = val
+        del dictGrad
+        del J
+        return self.converter.toArray(unconstrainedGradient)

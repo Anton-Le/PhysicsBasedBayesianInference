@@ -18,6 +18,8 @@ print(cpus)
 # Import the model (function)
 from CoinToss import coin_toss
 
+from collections import OrderedDict
+
 # Load the observed outcomes and the reference biases
 data = json.load(open("CoinToss.data.json"))
 
@@ -161,3 +163,63 @@ for key in unconstrainedGradient.keys():
     unconstrainedGradient[key] = val;
 
 print("Gradient on unconstrained domain: ", unconstrainedGradient)
+
+# Collect the parameters of the model that will be optimized over
+
+with numpyro.handlers.seed(rng_seed=1):
+    trace = numpyro.handlers.trace(coin_toss).get_trace(**{"c1": np.array(data["c1"]), "c2": np.array(data["c2"])})
+
+optParamsAndShapes = OrderedDict()
+
+for paramName in trace.keys():
+        paramProperties = trace[paramName]
+        if (paramProperties['type'] is 'sample') and (paramProperties['is_observed'] is False):
+                optParamsAndShapes[paramName] = paramProperties['value'].size
+
+print("Parameters to optimize over :", optParamsAndShapes.keys() )
+print("Their shapes: ", optParamsAndShapes.values() )
+
+# define a function that will take a vector/array and the above dict as inputs
+# and will produce a dict that can be passed to the gradient/density
+
+def arrayToDict(paramShapes, vec):
+    print(type(paramShapes))
+    size = 0;
+    for item in paramShapes.values():
+        size += item;
+    #ensure shapes check out
+    assert(size == vec.size)
+    paramData = OrderedDict().fromkeys( paramShapes.keys() );
+    # stupid way
+    arrayIdx = 0
+    for paramName in paramShapes.keys():
+        paramData[paramName] = vec[arrayIdx:arrayIdx + paramShapes[paramName] ].copy()
+        arrayIdx = paramShapes[paramName]
+    return paramData
+
+automappedParamDict = arrayToDict(optParamsAndShapes, np.array([p1_reference, p2_reference]) )
+print("Automatically mapped parameters: ", automappedParamDict)
+
+dictGrad = jax.grad(
+    lambda x: numpyro.infer.util.log_density(
+        model, (), {"c1": np.array(data["c1"]), "c2": np.array(data["c2"])}, x
+    )[0]
+)(automappedParamDict)
+print("Gradient obtained with it: ", dictGrad)
+
+# define an inverse function that will collect the values from a dict
+# into an array
+
+def dictToArray(paramShapes, paramDict):
+    size = 0
+    for item in paramShapes.values():
+        size += item;
+    vec = np.zeros(size);
+    arrayIdx = 0
+    for paramName in paramShapes.keys():
+        vec[arrayIdx:arrayIdx + paramShapes[paramName] ] = paramDict[paramName].copy()
+        arrayIdx = paramShapes[paramName]
+    return vec
+
+vectorialGradient = dictToArray(optParamsAndShapes, dictGrad)
+print("Gradient mapped to a vector: ", vectorialGradient)
