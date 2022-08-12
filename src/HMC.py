@@ -8,11 +8,14 @@ Created on Fri Jul 22 11:24:44 2022
 
 import numpy as np
 import jax.numpy as jnp
-from jax import grad
+from jax import grad, pmap
 from scipy.stats import norm
 from scipy.constants import Boltzmann as boltzmannConst
 from integrator import Leapfrog, StormerVerlet
 import jax
+from functools import partial
+import os
+os.environ['XLA_FLAGS'] ='--xla_force_host_platform_device_count=4'
 
 jax.config.update("jax_enable_x64", True)  # required or grad returns NaNs
 
@@ -25,9 +28,11 @@ class HMC:
 
     def __init__(
         self,
-        ensemble,
+        numDimensions,
         simulTime,
-        stepSize,
+        stepSize,        
+        temperature, 
+        qStd, 
         density,
         potential=None,
         gradient=None,
@@ -35,18 +40,22 @@ class HMC:
     ):
         """
         @parameters:
-            ensemble (Ensemble):
             simulTime (float): Duration of Hamiltonian simulation.
             stepSize (float):
+            temperature (float): Determines standard deviation momentum.
+            qStd (float): Intieial standard deviation of position.
+            mass (float): Determines standard deviation of momentum.
             density (func): Probability density function taking position.
             potential (func): Optional function equal to -ln(density)
             gradient (func): Optional gradient of -ln(density(q))
             method (str):
         """
         # we gather all information from the ensemble
-        self.ensemble = ensemble
+        self.numDimensions = numDimensions
         self.simulTime = simulTime
         self.stepSize = stepSize
+        self.temperature = temperature
+        self.qStd = qStd
         self.density = density
 
         if potential:
@@ -61,14 +70,26 @@ class HMC:
 
         if method == "Leapfrog":
             self.integrator = Leapfrog(
-                ensemble, stepSize, simulTime, self.gradient
+                stepSize, simulTime, self.gradient
             )
         elif method == "Stormer-Verlet":
             self.integrator = StormerVerlet(
-                ensemble, stepSize, simulTime, self.gradient
+                stepSize, simulTime, self.gradient
             )
         else:
             raise ValueError("Invalid integration method selected.")
+
+    def __hash__(self): # needed for pmap
+        return hash((
+            self.numDimensions,
+            self.simulTime,
+            self.stepSize,
+            self.temperature,
+            self.qStd,
+            self.potential,
+            self.gradient,
+            self.integrator,
+            ))
 
     # negative log potential energy, depends on position q only
     # U(x) = -log( p(x) )
@@ -83,113 +104,94 @@ class HMC:
         """
         return -jnp.log(self.density(q))
 
-    def getWeights(self, q, p):
+    def setMomentum(self, key, mass):
         """
         @description:
-            Get probabilistic weights of proposed position/momentum step.
+            Distribute momentum based on a thermal distribution.
 
-        @parameters:
-            q (ndarray): numDimensions x numParticles array
-            p (ndarray): numDimensions x numParticles array
-            self.mass (ndarray):
-            self.potential (func): Taking q[:, i]
+         @parameters:
+            mass (ndarray): Length of numParticles
+            temperature (float)
         """
-        weights = np.zeros(self.ensemble.numParticles)
-        for i in range(self.ensemble.numParticles):
-            # H = kinetic_energy + potential_energy
-            H = 0.5 * jnp.dot(p[:, i], p[:, i]) / self.ensemble.mass[
-                i
-            ] + self.potential(q[:, i])
-            weights[i] = jnp.exp(-H)
-        return weights
+        # thermal distribution
+        pStd = jnp.sqrt(mass * boltzmannConst * self.temperature)
 
-    def getWeightsRatio(self, newQ, newP, oldQ, oldP):
-        weightsRatio = np.zeros(self.ensemble.numParticles)
-        for i in range(self.ensemble.numParticles):
-            oldH = 0.5 * jnp.dot(oldP[:, i], oldP[:, i]) / self.ensemble.mass[
-                i
-            ] + self.potential(oldQ[:, i])
-            newH = 0.5 * jnp.dot(newP[:, i], newP[:, i]) / self.ensemble.mass[
-                i
-            ] + self.potential(newQ[:, i])
-            weightsRatio[i] = jnp.exp(oldH - newH)
-        return weightsRatio
+        return jax.random.normal(key, shape=(self.numDimensions,)) * pStd
+
+
+    def getWeightRatio(self, newQ, newP, oldQ, oldP, mass):
+        oldH = 0.5 * jnp.dot(oldP, oldP) / mass + self.potential(oldQ)
+        newH = 0.5 * jnp.dot(newP, newP) / mass + self.potential(newQ)
+        return jnp.exp(oldH - newH)
 
     def print_information(self):
         print("integrator: ", self.integrator)
         print("final integration time: ", self.simulTime)
         print("time step: ", self.stepSize)
 
-    def getSamples(self, numSamples, temperature, qStd):
+    @partial(pmap, static_broadcasted_argnums=(0, 1))
+    def getSamples(self, numIterations, mass, key):
         """
         @description:
             Get samples from HMC.
 
          @parameters:
-            numSamples (int):
+            numIterations (int):
             temperature (float): Temperature used to set momentum.
             qStd (float): Standard deviation of initial positions.
         """
 
         # to store samples generated during HMC iteration.
         # This is an array of matrices, each matrix corresponds to an HMC sample
-        samples_hmc = np.zeros(
-            (
-                self.ensemble.numDimensions,
-                self.ensemble.numParticles,
-                numSamples,
-            )
+        samples = jnp.zeros((self.numDimensions, numIterations))
+        momentums = jnp.zeros_like(samples)
+        key, subkey = jax.random.split(key)
+
+        q = jax.random.normal(subkey, shape=(self.numDimensions,)) * self.qStd
+
+        initialVal = (samples, momentums, q, key)
+
+        bodyFunc = lambda i, val: _getSamplesBody(i, val, mass, self)
+
+        finalVal = jax.lax.fori_loop(0, numIterations, bodyFunc, initialVal)
+
+        samples, momentums, _, _ = finalVal
+
+        return samples, momentums
+
+def _getSamplesBody(i, val, mass, self):
+    samples, momentums, q, key = val
+
+    key, subkey = jax.random.split(key) 
+
+    p = self.setMomentum(subkey, mass)
+
+    proposedQ, proposedP = self.integrator.integrate(q, p, mass)
+
+    # flip momenta
+
+    ratio = self.getWeightRatio(proposedQ, proposedP, q, p, mass)
+
+
+    acceptanceProb = jnp.minimum(1, ratio)
+
+    key, subkey = jax.random.split(key) 
+
+
+    q, p = jnp.where(
+        jax.random.uniform(subkey) < acceptanceProb,
+        jnp.array([proposedQ, proposedP]),
+        jnp.array([q, p]),
         )
-        shape = samples_hmc.shape
 
-        momentum_hmc = np.zeros_like(samples_hmc)
+    p = -p
 
-        self.print_information()
-        self.integrator.q = self.ensemble.setPosition(qStd)
+    
+    # update accepted moves
+    samples = samples.at[:, i].set(q)
+    momentums = momentums.at[:, i].set(p)
 
-        for i in range(numSamples):
-            if i % 100 == 0:
-                print("HMC iteration ", i + 1)
+    val = (samples, momentums, q, key)
 
-            self.integrator.p = self.ensemble.setMomentum(temperature)
+    return val
 
-            oldQ = np.copy(self.integrator.q)
-            oldP = np.copy(self.integrator.p)
-
-            # numerical solution for momenta and positions
-
-            q, p = self.integrator.integrate()
-
-            # flip momenta
-            p = -p
-
-            ratio = self.getWeightsRatio(q, p, oldQ, oldP)
-
-            acceptanceProb = np.minimum(1, ratio)
-
-            u = np.random.uniform(size=self.ensemble.numParticles)
-
-            # keep updated position/momenta unless:
-            mask = u > acceptanceProb
-
-            self.integrator.q[:, mask] = oldQ[:, mask]
-            self.integrator.p[:, mask] = oldQ[:, mask]
-            # update accepted moves
-            samples_hmc[:, :, i] = self.integrator.q
-            momentum_hmc[:, :, i] = self.integrator.p
-
-            # Is it a problem that we add the same point to samples twice if a proposal is rejected? I am not sure
-
-        return samples_hmc, momentum_hmc
-
-
-# toy examples to test HMC implementation on a 2D std Gaussian distribution
-def density(x):
-    return jnp.exp(-0.50 * jnp.linalg.norm(x) ** 2) / jnp.sqrt(
-        (2 * jnp.pi) ** 2
-    )
-
-
-# this is passed to the integrator
-def potential(x):
-    return -jnp.log(density(x))

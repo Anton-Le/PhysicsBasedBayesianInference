@@ -22,7 +22,7 @@ class Ensemble:
         particle, as well as the potential function.
     """
 
-    def __init__(self, numDimensions, numParticles):
+    def __init__(self, numParticles, numDimensions):
         """
         @description:
             Initialize ensemble object
@@ -37,17 +37,16 @@ class Ensemble:
 
         self.numParticles = numParticles
         self.numDimensions = numDimensions
-        self.q = np.zeros((numDimensions, numParticles))
-        self.p = np.zeros((numDimensions, numParticles))
+        self.q = np.zeros((numParticles, numDimensions))
+        self.p = np.zeros((numParticles, numDimensions))
         self.mass = np.ones(numParticles)
-        self.weights = np.zeros(numParticles)
 
     def __iter__(self):
         """
         @description:
             Allows for easy unpacking of ensemble object.
         """
-        return self.q, self.p, self.mass, self.weights, self.potential
+        return self.q, self.p, self.mass
 
     # def setWeights(self, temperature):
     #     """
@@ -69,8 +68,9 @@ class Ensemble:
             q_std (float): Standard deviation in positions.
         """
 
+
         self.q = norm.rvs(
-            scale=qStd, size=(self.numDimensions, self.numParticles)
+            scale=qStd, size=(self.numParticles, self.numDimensions)
         )
 
         return self.q
@@ -87,7 +87,7 @@ class Ensemble:
         # thermal distribution
         pStd = np.sqrt(self.mass * boltzmannConst * temperature)
         self.p = norm.rvs(
-            scale=pStd, size=(self.numDimensions, self.numParticles)
+            scale=pStd[:, None], size=(self.numParticles, self.numDimensions)
         )
 
         return self.p
@@ -107,8 +107,7 @@ class Ensemble:
             )
 
         return (
-            self.q[:, particleNum],
-            self.p[:, particleNum],
+            self.q[particleNum],
+            self.p[particleNum],
             self.mass[particleNum],
-            self.weights[particleNum],
         )

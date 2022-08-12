@@ -27,21 +27,19 @@ def main():
     numDimensions = 4
     numParticles = 100
 
-    ensemble1 = Ensemble(numDimensions, numParticles)
+    ensemble1 = Ensemble(numParticles, numDimensions)
 
     # expected output
     qExp = np.zeros(numDimensions)
     pExp = np.zeros(numDimensions)
-    mExp = 0
-    wExp = 0
+    mExp = 1
 
-    q1, p1, m1, w1 = ensemble1.particle(10)
+    q1, p1, m1 = ensemble1.particle(10)
 
     if (
         (qExp == q1).all()
         and (pExp == p1).all()
         and (mExp == m1).all()
-        and (wExp == w1).all()
     ):
         print("Test 1 passed.")
 
@@ -63,7 +61,7 @@ def main():
         velocity, temperature2, constMass
     )
 
-    ensemble2 = Ensemble(numDimensions2, numParticles2)
+    ensemble2 = Ensemble(numParticles2, numDimensions2)
     ensemble2.mass = mass2
     ensemble2.setMomentum(temperature2)
     ensemble2.setPosition(3)
@@ -75,7 +73,7 @@ def main():
     # ax.scatter3D(*(ensemble2.p)) # check p
     # plt.show()
     momentum = ensemble2.p
-    momentumMagnitudes = np.linalg.norm(momentum, axis=0)
+    momentumMagnitudes = np.linalg.norm(momentum, axis=1)
     velocityMagnitudes = momentumMagnitudes / mass2
     vLinspace = np.linspace(0, max(velocityMagnitudes), 100)
     freq = boltzmannDist2(vLinspace)
