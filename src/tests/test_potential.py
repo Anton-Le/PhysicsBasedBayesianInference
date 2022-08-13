@@ -8,19 +8,21 @@ from ensemble import Ensemble
 import numpy as np
 
 
-springConsts = np.array([2, 3])
-harmonicPotential1 = lambda q: harmonicPotentialND(q, springConsts)
 
-ensemble1 = Ensemble(2, 10)
-ensemble1.mass = np.ones(10)
 
-print("We expect a potential of 2*3^2 + 3*4^2 / 2 =18+48 /2=33 at (3, 4)")
-a = np.array([3.0, 4.0])
-ensemble1.q[:, 0] = a
-print(ensemble1.q)
-expPot = 33
-calculatedPot = harmonicPotential1(ensemble1.q)[0]
-print("Calculated potential at (3, 4) with springConsts (2, 3)")
-if calculatedPot == expPot:
-    print(f"={expPot}")
-    print("Pass")
+def test_potential():
+    springConsts = np.array([2, 3])
+    harmonicPotential1 = lambda q: harmonicPotentialND(q, springConsts)
+
+    ensemble = Ensemble(2, 10)
+    ensemble.mass = np.ones(10)
+
+    print("We expect a potential of 2*3^2 + 3*4^2 / 2 =18+48 /2=33 at (3, 4)")
+    ensemble.q[:, 0] = np.array([3.0, 4.0])
+    expectedPot = 33
+    calculatedPot = harmonicPotential1(ensemble.q)[0]
+    print("Calculated potential at (3, 4) with springConsts (2, 3): ", calculatedPot)
+    assert calculatedPot == expectedPot, "ERROR! Incorrect potential value"
+
+if __name__=='__main__':
+    test_potential()

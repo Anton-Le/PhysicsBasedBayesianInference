@@ -23,6 +23,27 @@ def boltzmannDistribution(velocity, temperature, mass):
     return prefactor1 * prefactor2 * np.exp(-(velocity**2) * mOver2kt)
 
 
+def test_init():
+    numDimensions = 4
+    numParticles = 100
+
+    ensemble = Ensemble(numDimensions, numParticles)
+
+    # expected output
+    q_expected = np.zeros(numDimensions)
+    p_expected = np.zeros(numDimensions)
+    m_expected = 1.0#0.0
+    w_expected = 0.0
+
+
+    q1, p1, m1, w1 = ensemble.particle(10)
+
+    assert np.all(q_expected == q1), "Unexpected position values"
+    assert np.all(p_expected == p1), "Unexpected momentum values"
+    assert np.all(m_expected == m1), "Unexpected mass values"
+    assert np.all(w_expected == w1), "Unexpected p'bility weight values"
+
+
 def main():
     numDimensions = 4
     numParticles = 100
@@ -32,19 +53,11 @@ def main():
     # expected output
     qExp = np.zeros(numDimensions)
     pExp = np.zeros(numDimensions)
-    mExp = 0
-    wExp = 0
+    mExp = 1.0#0.0
+    wExp = 0.0
 
-    q1, p1, m1, w1 = ensemble1.particle(10)
-
-    if (
-        (qExp == q1).all()
-        and (pExp == p1).all()
-        and (mExp == m1).all()
-        and (wExp == w1).all()
-    ):
-        print("Test 1 passed.")
-
+    test_init()
+    
     try:
         _ = ensemble1.particle(numParticles + 1)
         print("Test 2 Failed")
@@ -68,12 +81,6 @@ def main():
     ensemble2.setMomentum(temperature2)
     ensemble2.setPosition(3)
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
-
-    # ax.scatter3D(*ensemble2.q) # check q
-    # ax.scatter3D(*(ensemble2.p)) # check p
-    # plt.show()
     momentum = ensemble2.p
     momentumMagnitudes = np.linalg.norm(momentum, axis=0)
     velocityMagnitudes = momentumMagnitudes / mass2
