@@ -55,7 +55,7 @@ def harmonic_test(stepSize, numParticles, method):
     period1stDimension = (
         2 * np.pi / omega1stDimension
     )  # choose period to check validity of analytical solution.
-    finalTime = period1stDimension  # After 1 (1st dimension) period positions/momenta should be the same in 1st dimension
+    finalTime = 2*period1stDimension  # After 1 (1st dimension) period positions/momenta should be the same in 1st dimension
 
 
     mass = np.ones(numParticles) * mass
@@ -94,7 +94,7 @@ def harmonic_test(stepSize, numParticles, method):
 
 def runProfileCase():
     methods = ["Leapfrog", "Stormer-Verlet"]
-    numParticles = 3  
+    numParticles = 5 
     numDimensions = 1
     stepSizes = np.logspace(-7, -1, 14)
     logStepSizes = np.log10(stepSizes)
@@ -102,9 +102,10 @@ def runProfileCase():
 
 
     # run one step size
-    jax.profiler.start_trace("/tmp/jax-trace")
-    errors[0, :] = harmonic_test(stepSizes[-1], numParticles, methods[0] )
-    jax.profiler.stop_trace()
+    #jax.profiler.start_trace("/tmp/jax-trace")
+    with jax.profiler.trace("/tmp/jax-trace", create_perfetto_link=True):
+        errors[0, :] = harmonic_test(stepSizes[-1], numParticles, methods[0] )
+    #jax.profiler.stop_trace()
 
 
 if __name__ == "__main__":
