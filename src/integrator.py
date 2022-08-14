@@ -64,10 +64,18 @@ class Integrator:
             integration method')
 
 
-    #@partial(vmap, in_axes=0, out_axes=0)#, static_broadcasted_argnums=0)
+    @partial(jit, static_argnums=0)
     def pintegrate(self, q, p, mass):
-        f = jit(vmap(self.integrate, in_axes=0, out_axes=0))
+        f = vmap(self.integrate)
         return f(q, p, mass)
+
+    # @partial(jit, static_argnums=0)
+    # def pintegrate(self, q, p, mass):
+    #     q_p_mass = (q, p, mass)
+
+    #     f = lambda q_p_mass: self.integrate(*q_p_mass)
+    #     q, p = jax.lax.map(f, q_p_mass)
+    #     return (q, p)
 
 
 class Leapfrog(Integrator):
