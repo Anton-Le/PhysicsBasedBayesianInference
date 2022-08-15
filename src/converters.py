@@ -28,7 +28,7 @@ class Converter:
 
         for paramName in trace.keys():
             paramProperties = trace[paramName]
-            if (paramProperties['type'] is 'sample') and (paramProperties['is_observed'] is False):
+            if (paramProperties['type'] == 'sample') and (paramProperties['is_observed'] is False):
                 self.parametersAndShapes[paramName] = paramProperties['value'].size
         # determine the total length of a vector to store the parameters
         self.vectorSize = 0;
