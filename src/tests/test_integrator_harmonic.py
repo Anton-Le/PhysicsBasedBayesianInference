@@ -97,7 +97,7 @@ def harmonic_test(stepSize, numParticles, method):
         ensemble1, finalTime, springConsts
     )
 
-    q_num, p_num = sol_q_p.integrate()
+    q_num, p_num = integrator.integrate()
 
     return (np.abs(q_num[dimension] - q_ana[dimension]), q_ana[dimension])
 
