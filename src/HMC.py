@@ -8,7 +8,7 @@ Created on Fri Jul 22 11:24:44 2022
 
 import numpy as np
 import jax.numpy as jnp
-from jax import grad, pmap
+from jax import grad, vmap, jit
 from scipy.stats import norm
 from scipy.constants import Boltzmann as boltzmannConst
 from integrator import Leapfrog, StormerVerlet
@@ -129,7 +129,8 @@ class HMC:
         print("final integration time: ", self.simulTime)
         print("time step: ", self.stepSize)
 
-    @partial(pmap, static_broadcasted_argnums=(0, 1))
+    @partial(jit, static_argnums=(0, 1))
+    @partial(vmap, in_axes=[None, None, 0, 0])
     def getSamples(self, numIterations, mass, key):
         """
         @description:
@@ -145,11 +146,11 @@ class HMC:
         # This is an array of matrices, each matrix corresponds to an HMC sample
         samples = jnp.zeros((self.numDimensions, numIterations))
         momentums = jnp.zeros_like(samples)
-        key, subkey = jax.random.split(key)
+        subkeys = jax.random.split(key)
 
-        q = jax.random.normal(subkey, shape=(self.numDimensions,)) * self.qStd
+        q = jax.random.normal(subkeys[0], shape=(self.numDimensions,)) * self.qStd
 
-        initialVal = (samples, momentums, q, key)
+        initialVal = (samples, momentums, q, subkeys[1])
 
         bodyFunc = lambda i, val: _getSamplesBody(i, val, mass, self)
 
@@ -162,9 +163,9 @@ class HMC:
 def _getSamplesBody(i, val, mass, self):
     samples, momentums, q, key = val
 
-    key, subkey = jax.random.split(key) 
+    key, *subkeys = jax.random.split(key, 3) 
 
-    p = self.setMomentum(subkey, mass)
+    p = self.setMomentum(subkeys[0], mass)
 
     proposedQ, proposedP = self.integrator.integrate(q, p, mass)
 
@@ -175,7 +176,7 @@ def _getSamplesBody(i, val, mass, self):
 
     acceptanceProb = jnp.minimum(1, ratio)
 
-    key, subkey = jax.random.split(key) 
+    key, subkey = jax.random.split(subkeys[1]) 
 
 
     q, p = jnp.where(
