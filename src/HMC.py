@@ -3,12 +3,12 @@
 """
 Created on Fri Jul 22 11:24:44 2022
 
-@author: bruno
+@author: bruno, thomas
 """
 
 import numpy as np
 import jax.numpy as jnp
-from jax import grad, pmap
+from jax import grad, vmap, jit
 from scipy.stats import norm
 from scipy.constants import Boltzmann as boltzmannConst
 from integrator import Leapfrog, StormerVerlet
@@ -40,17 +40,16 @@ class HMC:
     ):
         """
         @parameters:
+            numDimensions (int): 
             simulTime (float): Duration of Hamiltonian simulation.
             stepSize (float):
-            temperature (float): Determines standard deviation momentum.
-            qStd (float): Intieial standard deviation of position.
-            mass (float): Determines standard deviation of momentum.
-            density (func): Probability density function taking position.
+            temperature (float): Determines standard deviation of momentum.
+            qStd (float): Initial standard deviation of position.
+            density (func): Probability density function taking position as only arg.
             potential (func): Optional function equal to -ln(density)
-            gradient (func): Optional gradient of -ln(density(q))
+            gradient (func): Optional gradient of potential
             method (str):
         """
-        # we gather all information from the ensemble
         self.numDimensions = numDimensions
         self.simulTime = simulTime
         self.stepSize = stepSize
@@ -79,7 +78,10 @@ class HMC:
         else:
             raise ValueError("Invalid integration method selected.")
 
-    def __hash__(self): # needed for pmap
+    def __hash__(self):
+        '''
+        Needed to ensure getSamples is recompiled if any attributes change.
+        '''
         return hash((
             self.numDimensions,
             self.simulTime,
@@ -91,12 +93,11 @@ class HMC:
             self.integrator,
             ))
 
-    # negative log potential energy, depends on position q only
-    # U(x) = -log( p(x) )
+
     def potentialFunc(self, q):
         """
         @description:
-            Get potential at position q.
+            Default potential function at position q.
 
         @parameters:
             self.density (func):
@@ -110,8 +111,8 @@ class HMC:
             Distribute momentum based on a thermal distribution.
 
          @parameters:
-            mass (ndarray): Length of numParticles
-            temperature (float)
+            key (PRNGKeyArray)
+            mass (ndarray): Has length numParticles
         """
         # thermal distribution
         pStd = jnp.sqrt(mass * boltzmannConst * self.temperature)
@@ -120,6 +121,17 @@ class HMC:
 
 
     def getWeightRatio(self, newQ, newP, oldQ, oldP, mass):
+        """
+        @description:
+            Get ratio of exp(H) for HMC
+
+         @parameters:
+            newQ (ndarray)
+            newP (ndarray)
+            oldQ (ndarray)
+            oldP (ndarray)
+            mass (float)
+        """
         oldH = 0.5 * jnp.dot(oldP, oldP) / mass + self.potential(oldQ)
         newH = 0.5 * jnp.dot(newP, newP) / mass + self.potential(newQ)
         return jnp.exp(oldH - newH)
@@ -129,7 +141,8 @@ class HMC:
         print("final integration time: ", self.simulTime)
         print("time step: ", self.stepSize)
 
-    @partial(pmap, static_broadcasted_argnums=(0, 1))
+    @partial(jit, static_argnums=(0, 1))
+    @partial(vmap, in_axes=[None, None, 0, 0])
     def getSamples(self, numIterations, mass, key):
         """
         @description:
@@ -145,11 +158,11 @@ class HMC:
         # This is an array of matrices, each matrix corresponds to an HMC sample
         samples = jnp.zeros((self.numDimensions, numIterations))
         momentums = jnp.zeros_like(samples)
-        key, subkey = jax.random.split(key)
+        subkeys = jax.random.split(key)
 
-        q = jax.random.normal(subkey, shape=(self.numDimensions,)) * self.qStd
+        q = jax.random.normal(subkeys[0], shape=(self.numDimensions,)) * self.qStd
 
-        initialVal = (samples, momentums, q, key)
+        initialVal = (samples, momentums, q, subkeys[1])
 
         bodyFunc = lambda i, val: _getSamplesBody(i, val, mass, self)
 
@@ -160,11 +173,15 @@ class HMC:
         return samples, momentums
 
 def _getSamplesBody(i, val, mass, self):
+    '''
+    @description
+        Body function corresponding with HMC step.
+    '''
     samples, momentums, q, key = val
 
-    key, subkey = jax.random.split(key) 
+    key, *subkeys = jax.random.split(key, 3) 
 
-    p = self.setMomentum(subkey, mass)
+    p = self.setMomentum(subkeys[0], mass)
 
     proposedQ, proposedP = self.integrator.integrate(q, p, mass)
 
@@ -175,7 +192,7 @@ def _getSamplesBody(i, val, mass, self):
 
     acceptanceProb = jnp.minimum(1, ratio)
 
-    key, subkey = jax.random.split(key) 
+    key, subkey = jax.random.split(subkeys[1]) 
 
 
     q, p = jnp.where(
