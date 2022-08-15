@@ -14,13 +14,11 @@ from ensemble import Ensemble
 from integrator import Leapfrog, StormerVerlet
 from scipy.constants import Boltzmann
 from potential import harmonicPotentialND
-
 import jax
 from jax import grad, pmap
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
-
 
 float64 = True
 jax.config.update("jax_enable_x64", float64)
@@ -28,6 +26,7 @@ if float64:
     minError = np.finfo(float).eps
 else:
     minError = np.finfo('float32').eps
+
 
 
 
@@ -55,8 +54,7 @@ def harmonic_test(stepSize, numParticles, method):
     # ensemble variables
     numDimensions = 2  # must match len(springConsts)
     mass = 1
-    temperature = 1000 / Boltzmann
-
+    temperature = 1
     q_std = 10
 
     # integrator setup
@@ -66,6 +64,7 @@ def harmonic_test(stepSize, numParticles, method):
         2 * np.pi / omega1stDimension
     )  # choose period to check validity of analytical solution.
     finalTime = period1stDimension  # After 1 (1st dimension) period positions/momenta should be the same in 1st dimension
+
 
     mass = np.ones(numParticles) * mass
 
@@ -87,19 +86,18 @@ def harmonic_test(stepSize, numParticles, method):
 
     integrator = intMethod(stepSize, finalTime, harmonicGradient)
 
-    q_num = np.zeros((numParticles, numDimensions))
-    p_num = np.zeros_like(q_num)
 
     # actual solution for position and momenta
+    q_num, p_num = integrator.pintegrate(q, p, mass)
 
-
+    numSteps = int(finalTime / stepSize)
     q_ana, p_ana = harmonicOscillatorAnalytic(
         ensemble1, finalTime, springConsts
     )
 
-    q_num, p_num = integrator.integrate()
 
-    return (np.abs(q_num[dimension] - q_ana[dimension]), q_ana[dimension])
+    return (np.abs(q_num[:, dimension] - q_ana[:, dimension]), q_ana[:, dimension])
+
 
 
 
@@ -123,10 +121,7 @@ def plotError():
             error, q_ana = harmonic_test(stepSize, numParticles, method)
             mask = (error == 0)
             error[mask] = minError * q_ana[mask]
-
             errors[j, :] = error
-
-
 
         logErr = np.log10(errors)
         meanErr = np.mean(logErr, axis=1)
