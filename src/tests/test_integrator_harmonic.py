@@ -106,7 +106,7 @@ def harmonic_test(stepSize, numParticles, method):
     print(q_ana[dimension])
     print(30 * "#")
 
-    return np.abs(q_num[dimension] - q_ana[dimension])
+    return (np.abs(q_num[dimension] - q_ana[dimension]), q_ana[dimension])
 
 
 def plotError():
@@ -126,10 +126,13 @@ def plotError():
         marker = next(markers)
         color = next(ax._get_lines.prop_cycler)["color"]
         for j, stepSize in enumerate(stepSizes):
-            errors[j, :] = harmonic_test(stepSize, numParticles, method)
+            error, q_ana = harmonic_test(stepSize, numParticles, method)
+            mask = (error == 0)
+            error[mask] = minError * q_ana[mask]
 
-        mask = (errors == 0)
-        errors[mask] = minError
+            errors[j, :] = error
+
+
 
         logErr = np.log10(errors)
         meanErr = np.mean(logErr, axis=1)
