@@ -13,10 +13,19 @@ sys.path.append("../")
 from ensemble import Ensemble
 from integrator import Leapfrog, StormerVerlet
 from potential import harmonicPotentialND
+from scipy.constants import Boltzmann
 from jax import grad
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
+from jax.config import config
+
+float64 = True
+config.update("jax_enable_x64", float64)
+if float64:
+    minError = np.finfo(float).eps
+else:
+    minError = np.finfo('float32').eps
 
 
 springConsts = np.array((2.0, 3.0))  # must be floats to work with grad
@@ -43,7 +52,7 @@ def harmonic_test(stepSize, numParticles, method):
     # ensemble variables
     numDimensions = 2  # must match len(springConsts)
     mass = 1
-    temperature = 1000
+    temperature = 1000 / Boltzmann
     q_std = 10
 
     # integrator setup
@@ -52,7 +61,7 @@ def harmonic_test(stepSize, numParticles, method):
     period1stDimension = (
         2 * np.pi / omega1stDimension
     )  # choose period to check validity of analytical solution.
-    finalTime = period1stDimension  # After 1 (1st dimension) period positions/momenta should be the same in 1st dimension
+    finalTime = period1stDimension * 1.321 # After 1 (1st dimension) period positions/momenta should be the same in 1st dimension
     print(f"Duration: {finalTime}")
 
     mass = np.ones(numParticles) * mass
@@ -78,12 +87,16 @@ def harmonic_test(stepSize, numParticles, method):
         raise ValueError("Method must be 'Leapfrog' or 'Stormer-Verlet'")
 
     # actual solution for position and momenta
-    q_num, p_num = sol_q_p.integrate()
+    
 
-    numSteps = int(finalTime / stepSize)
     q_ana, p_ana = harmonicOscillatorAnalytic(
         ensemble1, finalTime, springConsts
     )
+
+
+    q_num, p_num = sol_q_p.integrate()
+
+
 
     print("Numeric Solution:")
     print(q_num[dimension])
@@ -114,6 +127,9 @@ def plotError():
         color = next(ax._get_lines.prop_cycler)["color"]
         for j, stepSize in enumerate(stepSizes):
             errors[j, :] = harmonic_test(stepSize, numParticles, method)
+
+        mask = (errors == 0)
+        errors[mask] = minError
 
         logErr = np.log10(errors)
         meanErr = np.mean(logErr, axis=1)
