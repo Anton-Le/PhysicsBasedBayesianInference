@@ -19,6 +19,7 @@ from jax.scipy.stats import multivariate_normal
 import matplotlib as mpl
 import jax
 from HMC import HMC
+from mpi4py import MPI, rc
 
 
 jax.config.update("jax_enable_x64", True) 
@@ -45,10 +46,6 @@ def test1():
     qStd = 3
     mass = jnp.ones(numParticles)
 
-    # get samples from numpy 
-    numpySamples = np.random.multivariate_normal(
-        mean, cov, size=numParticles * numIterations
-    )
 
     # get samples from HMC
 
