@@ -49,16 +49,17 @@ class Ensemble:
         """
         return self.q, self.p, self.mass, self.weights, self.potential
 
-    # def setWeights(self, temperature):
-    #     """
-    #     @description:
-    #         Set probabilistic weights.
-    #      @parameters:
-    #         temperature (float):
-    #     """
-    #     kineticEnergy = np.sum((self.p ** 2 / (2 * self.mass)), axis=0)
-    #     hamiltonian = self.potential(self.q) + kineticEnergy
-    #     self.weights = np.exp(- hamiltonian / (boltzmannConst * temperature))
+    def setWeights(self, potential, temperature):
+         """
+         @description:
+             Set probabilistic weights.
+          @parameters:
+             potential (function):
+         """
+         for particleId in range(self.numParticles):
+             kineticEnergy = np.sum((self.p[:,particleId] ** 2 / (2 * self.mass[particleId])), axis=0)
+             hamiltonian = potential(self.q[:,particleId]) + kineticEnergy
+             self.weights[particleId] = np.exp(- hamiltonian / (boltzmannConst * temperature))
 
     def setPosition(self, qStd):
         """
