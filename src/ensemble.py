@@ -9,6 +9,7 @@ Contains Ensemble class.
 """
 
 import numpy as np
+import jax.numpy as jnp
 from scipy.stats import norm
 from scipy.constants import k as boltzmannConst
 from potential import nBodyPotential
@@ -37,9 +38,10 @@ class Ensemble:
 
         self.numParticles = numParticles
         self.numDimensions = numDimensions
-        self.q = np.zeros((numParticles, numDimensions))
-        self.p = np.zeros((numParticles, numDimensions))
-        self.mass = np.ones(numParticles)
+        self.q = jnp.zeros((numParticles, numDimensions))
+        self.p = jnp.zeros((numParticles, numDimensions))
+        self.mass = jnp.ones(numParticles)
+        print(self.numParticles)
 
     def __iter__(self):
         """
@@ -69,8 +71,9 @@ class Ensemble:
         """
 
 
-        self.q = norm.rvs(
+        self.q = jnp.array( norm.rvs(
             scale=qStd, size=(self.numParticles, self.numDimensions)
+        )
         )
 
         return self.q
@@ -85,9 +88,10 @@ class Ensemble:
             temperature (float)
         """
         # thermal distribution
-        pStd = np.sqrt(self.mass * boltzmannConst * temperature)
-        self.p = norm.rvs(
+        pStd = jnp.sqrt(self.mass * boltzmannConst * temperature)
+        self.p = jnp.array(norm.rvs(
             scale=pStd[:, None], size=(self.numParticles, self.numDimensions)
+        )
         )
 
         return self.p

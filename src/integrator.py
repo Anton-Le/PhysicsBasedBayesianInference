@@ -45,7 +45,7 @@ class Integrator:
         # final simulation time
         self.finalTime = finalTime
         self.numSteps = int(self.finalTime/self.stepSize)
-
+        print(self.finalTime, self.stepSize, self.numSteps)
         # gradient function
         self.gradient = gradient
 
@@ -66,7 +66,7 @@ class Integrator:
 
     #@partial(vmap, in_axes=0, out_axes=0)#, static_broadcasted_argnums=0)
     def pintegrate(self, q, p, mass):
-        f = jit(vmap(self.integrate, in_axes=0, out_axes=0))
+        f = vmap(self.integrate, in_axes=0, out_axes=0)
         return f(q, p, mass)
 
 
@@ -90,9 +90,17 @@ class Leapfrog(Integrator):
 
         initial_val = (q, v, currentAccel)
 
-        body_func = lambda i, val: _leapfrogBodyFunc(i, val, self.stepSize, self.gradient, mass)
-
-        final_val = jax.lax.fori_loop(0, self.numSteps, body_func, initial_val)
+        #body_func = lambda i, val: _leapfrogBodyFunc(i, val, self.stepSize, self.gradient, mass)
+        body_func = lambda val: (val[0]+1, _leapfrogBodyFunc(val[0], val[1], self.stepSize, self.gradient, mass) )
+        #stepIdx = 0
+        #val = initial_val
+        #while stepIdx < self.numSteps:
+        #    val = body_func(stepIdx, val)
+        #    stepIdx += 1
+        #final_val = val
+        cond_func = lambda val: val[0] < self.numSteps
+        _, final_val = jax.lax.while_loop(cond_func, body_func, (0, initial_val) )
+        #final_val = jax.lax.fori_loop(0, self.numSteps, body_func, initial_val)
 
         q, v, _ = final_val
 
@@ -128,9 +136,14 @@ class StormerVerlet(Integrator):
         initial_val = (q, qPast)
         
         body_func = lambda i, val: _stormerVerletBodyFunc(i, val, self.stepSize, self.gradient, mass)
+        stepIdx = 0
+        val = initial_val
 
-        final_val = jax.lax.fori_loop(0, self.numSteps, body_func, initial_val)
+        while stepIdx < self.numSteps:
+            val = body_func(stepIdx, val)
+        stepIdx += 1
 
+        print(stepIdx)
         q, qPast = final_val
         v = (q - qPast) / self.stepSize
         p = v * mass
@@ -138,14 +151,15 @@ class StormerVerlet(Integrator):
         return (q, p)
 
 
-
+@partial(jax.profiler.annotate_function, name="LF-body")
 def _leapfrogBodyFunc(i, val, stepSize, gradient, mass):
-    q, v, currentAccel = val
-    q = q + v * stepSize + 0.5 * currentAccel * stepSize ** 2
-    nextAccel = - gradient(q) / mass
-    v = v + 0.5 * (currentAccel + nextAccel) * stepSize
-    currentAccel = jnp.copy(nextAccel)
-    val = (q, v, currentAccel)
+    with jax.profiler.StepTraceAnnotation("LF-body_step", step_num=i):
+        q, v, currentAccel = val
+        q = q + v * stepSize + 0.5 * currentAccel * stepSize ** 2
+        nextAccel = - gradient(q) / mass
+        v = v + 0.5 * (currentAccel + nextAccel) * stepSize
+        currentAccel = jnp.copy(nextAccel)
+        val = (q, v, currentAccel)
     return val
 
 def _stormerVerletBodyFunc(i, val, stepSize, gradient, mass):
