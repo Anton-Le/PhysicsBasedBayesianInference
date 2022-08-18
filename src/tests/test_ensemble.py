@@ -5,7 +5,8 @@ import sys
 # setting path
 sys.path.append("../")
 
-import numpy as np
+import jax.numpy as jnp
+import jax
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 from scipy.constants import k as boltzmannConst
@@ -18,20 +19,27 @@ def boltzmannDistribution(velocity, temperature, mass):
     https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution#Distribution_function
     """
     mOver2kt = mass / (2 * boltzmannConst * temperature)
-    prefactor1 = (mOver2kt / np.pi) ** (3 / 2)
-    prefactor2 = 4 * np.pi * velocity**2
-    return prefactor1 * prefactor2 * np.exp(-(velocity**2) * mOver2kt)
+    prefactor1 = (mOver2kt / jnp.pi) ** (3 / 2)
+    prefactor2 = 4 * jnp.pi * velocity**2
+    return prefactor1 * prefactor2 * jnp.exp(-(velocity**2) * mOver2kt)
 
 
-def main():
+def test1():
     numDimensions = 4
     numParticles = 100
+    seed = 10
+    temperature = 1
 
-    ensemble1 = Ensemble(numParticles, numDimensions)
+    ensemble1 = Ensemble(
+        numParticles, 
+        numDimensions, 
+        temperature, 
+        jax.random.PRNGKey(seed)
+        )
 
     # expected output
-    qExp = np.zeros(numDimensions)
-    pExp = np.zeros(numDimensions)
+    qExp = jnp.zeros(numDimensions)
+    pExp = jnp.zeros(numDimensions)
     mExp = 1
 
     q1, p1, m1 = ensemble1.particle(10)
@@ -50,20 +58,30 @@ def main():
         print(error)
         print("Test 2 Passed \n")
 
+
+
+def test2():
     print("Testing initial velocities follow boltzman distribution.")
 
     numDimensions2 = 3
     numParticles2 = 1000
+    seed = 10
+
     temperature2 = 300
     constMass = 1e-27
-    mass2 = np.ones(numParticles2) * constMass
+    mass2 = jnp.ones(numParticles2) * constMass
     boltzmannDist2 = lambda velocity: boltzmannDistribution(
         velocity, temperature2, constMass
     )
 
-    ensemble2 = Ensemble(numParticles2, numDimensions2)
+    ensemble2 = Ensemble(
+        numParticles2, 
+        numDimensions2, 
+        temperature2, 
+        jax.random.PRNGKey(seed)
+        )
     ensemble2.mass = mass2
-    ensemble2.setMomentum(temperature2)
+    ensemble2.setMomentum()
     ensemble2.setPosition(3)
 
     # fig = plt.figure()
@@ -73,9 +91,9 @@ def main():
     # ax.scatter3D(*(ensemble2.p)) # check p
     # plt.show()
     momentum = ensemble2.p
-    momentumMagnitudes = np.linalg.norm(momentum, axis=1)
+    momentumMagnitudes = jnp.linalg.norm(momentum, axis=1)
     velocityMagnitudes = momentumMagnitudes / mass2
-    vLinspace = np.linspace(0, max(velocityMagnitudes), 100)
+    vLinspace = jnp.linspace(0, max(velocityMagnitudes), 100)
     freq = boltzmannDist2(vLinspace)
 
     plt.hist(velocityMagnitudes, bins=30, density=True)
@@ -83,5 +101,20 @@ def main():
     plt.show()
 
 
+    print('check key is updated:')
+    ensemble2.setMomentum()
+    momentum_2 = ensemble2.p
+    assert (momentum != momentum_2).all()
+
+
+    ensemble2.setPosition(3)
+    q_1 = ensemble2.q
+    ensemble2.setPosition(3)
+    q_2 = ensemble2.q
+    assert (q_2 != q_1).all()
+    print('passed')
+
+
 if __name__ == "__main__":
-    main()
+    test1()
+    test2()
