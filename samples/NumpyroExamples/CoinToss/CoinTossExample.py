@@ -173,7 +173,7 @@ optParamsAndShapes = OrderedDict()
 
 for paramName in trace.keys():
         paramProperties = trace[paramName]
-        if (paramProperties['type'] is 'sample') and (paramProperties['is_observed'] is False):
+        if (paramProperties['type'] == 'sample') and (paramProperties['is_observed'] == False):
                 optParamsAndShapes[paramName] = paramProperties['value'].size
 
 print("Parameters to optimize over :", optParamsAndShapes.keys() )
