@@ -15,11 +15,14 @@ from integrator import Leapfrog, StormerVerlet
 from scipy.constants import Boltzmann
 from potential import harmonicPotentialND
 import jax
+import numpyro
 from jax import grad, pmap
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
 from jax.config import config
+
+numpyro.set_platform("gpu")
 
 float64 = True
 config.update("jax_enable_x64", float64)
@@ -53,7 +56,7 @@ def harmonic_test(stepSize, numParticles, method):
     # ensemble variables
     numDimensions = 2  # must match len(springConsts)
     mass = 1
-    temperature = 1000 / Boltzmann
+    temperature = 1
     q_std = 10
 
     # integrator setup
@@ -99,7 +102,7 @@ def harmonic_test(stepSize, numParticles, method):
 
 def plotError():
     methods = ["Leapfrog", "Stormer-Verlet"]
-    numParticles = 3  
+    numParticles = 30
     numDimensions = 1
     stepSizes = np.logspace(-7, -1, 14)
     logStepSizes = np.log10(stepSizes)
