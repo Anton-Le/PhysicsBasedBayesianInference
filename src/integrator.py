@@ -13,153 +13,149 @@ momenta and positions for a N-particle system
 from ensemble import Ensemble
 from scipy.optimize import approx_fprime
 from potential import getAccelNBody, nBodyPotential
-from scipy.constants import G  # for debug
+from scipy.constants import G # for debug
+import jax.numpy as jnp
 import numpy as np
+import jax
+from jax import pmap, vmap, jit
+from functools import partial
+import os
+# os.environ['XLA_FLAGS'] ='--xla_force_host_platform_device_count=4'
 
 
 class Integrator:
     """
     @description:
-        This class contains functions to compute the positions
-        and momenta at final simulation time finalTime for a system of N particles
-        interacting according to a given potential.
-        We do not store the solution at each time step, but the solution at final simulation
-        time.
+        Simulate a particle's motion given its mass, initial position and 
+        momentum as well as the gradient of the potential it is in.
     """
-
-    def __init__(self, ensemble, stepSize, finalTime, gradient):
-        """
+    def __init__(self, stepSize, finalTime, gradient):
+        '''
         @parameters:
-            ensemble (Ensemble):
             stepSize (float):
             finalTime (float):
-            gradient (func): Gradient of potential.
-        """
-        # initial positions
-        self.ensemble = ensemble
-        self.q = ensemble.q
-        # initial momenta
-        self.p = ensemble.p
-        self.mass = ensemble.mass
-        # calculate initial velocities
-        self.v = self.p / self.mass
-        self.numParticles = ensemble.numParticles
-        # step size for integrator
-        self.stepSize = stepSize
-        # final simulation time
+            gradient (func): Gradient of potential taking q as only argument.
+        '''
+        self.stepSize = float(stepSize)
         self.finalTime = finalTime
-        self.numSteps = int(self.finalTime / self.stepSize)
 
-        # gradient function
+        self.numSteps = int(self.finalTime/self.stepSize)
+
         self.gradient = gradient
 
-        # save avoid expenseive numerical differentiation of nBody potential
-        if not gradient:
-            print(f"Gradient={gradient} - performing nBody simulation.")
-            self.getAccel = self.getAccelNBody
+    def __hash__(self):
+        return hash((
+            self.stepSize,
+            self.finalTime,
+            self.gradient,
+            self.integrate
+            ))
+    
+    def __eq__(self, other):
+        return (isinstance(other, Integrator) and 
+            (self.stepSize, self.finalTime, self.gradient, self.integrate) == 
+            (other.stepSize, other.finalTime, other.gradient, other.integrate))
 
-    def getAccel(self, i):
-        """
-        @description:
-            Get acceleration of the i th particle.
-
-        @parameters:
-            self.q (ndarray): numDimensions x numParticles array
-            self.mass (ndarray):
-            self.potential (func):
-            self.dq (float):
-        """
-
-        return -self.gradient(self.q[:, i]) / self.mass[i]
-
-    def getAccelNBody(self, i):
-        """
-        @description:
-            Calculate acceleration of i th particle in N-body system.
-
-        @parameters:
-            q (ndarray): numDimensions x numParticles array of positions
-            i (int): index
-            mass (ndarray): numParticles array of masses
-        """
-        return getAccelNBody(self.q, self.mass, i)
-
+            
     def integrate(self):
-        raise NotImplementedError(
-            "Integrator superclass doesn't specify \
-            integration method"
-        )
+        raise NotImplementedError('Integrator superclass doesn\'t specify \
+            integration method')
+
+
+    # @partial(jit, static_argnums=0)
+    @partial(vmap, in_axes=(None, 0, 0, 0))
+    def pintegrate(self, q, p, mass):
+        return self.integrate(q, p, mass)
+
+    # @partial(jit, static_argnums=0)
+    # def pintegrate(self, q, p, mass):
+    #     q_p_mass = (q, p, mass)
+
+    #     f = lambda q_p_mass: self.integrate(*q_p_mass)
+    #     q, p = jax.lax.map(f, q_p_mass)
+    #     return (q, p)
 
 
 class Leapfrog(Integrator):
-    def integrate(self):
+    def integrate(self, q, p, mass):
         """
         @description:
-            function to compute numerically positions and momenta for N particles
-            using leap frog algorithm
+            Leap frog algorithm.
             Integer formulation from https://en.wikipedia.org/wiki/Leapfrog_integration
 
         @parameters:
+            q (ndarray) : Initial position
+            p (ndarray) : Initial momentum
+            mass (float) :
         """
+        q = jnp.copy(q)
+        p = jnp.copy(p)
 
-        for i in range(self.numParticles):
-            self.v[:, i] = self.p[:, i] / self.mass[i]
+        v = p / mass           
+        currentAccel = - self.gradient(q) / mass
 
-            currentAccel = self.getAccel(i)
-            # number of time steps consider on [initialTime, finalTime]
 
-            for j in range(self.numSteps):
-                self.q[:, i] += (
-                    self.v[:, i] * self.stepSize
-                    + 0.5 * currentAccel * self.stepSize**2
-                )
-                nextAccel = self.getAccel(i)
-                self.v[:, i] += 0.5 * (currentAccel + nextAccel) * self.stepSize
-                currentAccel = np.copy(nextAccel)
+        initial_val = (q, v, currentAccel)
 
-            self.p[:, i] = self.v[:, i] * self.mass[i]
+        body_func = lambda i, val: _leapfrogBodyFunc(i, val, self.stepSize, self.gradient, mass)
 
-        # return postion and momenta of all particles at finalTime
-        return (self.q, self.p)
+        final_val = jax.lax.fori_loop(0, self.numSteps, body_func, initial_val)
+
+
+        q, v, _ = final_val
+        p = v * mass
+
+        return (q, p)
+
 
 
 class StormerVerlet(Integrator):
-    def integrate(self):
+    def integrate(self, q, p, mass):
         """
         @description:
-            function to compute numerically positions and momenta for N particles
-            using Stormer-Verlet algorithm.
+            Stormer-Verlet algorithm.
             Algorithm taken from https://www2.math.ethz.ch/education/bachelor/seminars/fs2008/nas/crivelli.pdf
 
         @parameters:
-            ensemble (class): initilialize particles and contains information about particles
-                              positons and momente
-            stepSize (float): step size for numerical integrator
-            finalTime (float): final simulation time
+            q (ndarray) : Initial position
+            p (ndarray) : Initial momentum
+            mass (float) :
         """
+        q = jnp.copy(q)
+        p = jnp.copy(p)
 
-        # for each particle
-        for i in range(self.numParticles):
-            self.v[:, i] = self.p[:, i] / self.mass[i]
+        v = p / mass
 
-            qPast = np.copy(self.q[:, i])
-            self.q[:, i] = (
-                self.q[:, i]
-                + self.v[:, i] * self.stepSize
-                + 0.5 * self.getAccel(i) * self.stepSize**2
-            )
+        qPast = jnp.copy(q)
+        q = q + v * self.stepSize - 0.5 * self.stepSize ** 2 * self.gradient(q) / mass
 
-            # number of time steps consider on [initialTime, finalTime]
-            for j in range(self.numSteps):
-                temp = np.copy(self.q[:, i])
-                self.q[:, i] = (
-                    2 * self.q[:, i]
-                    - qPast
-                    + self.getAccel(i) * self.stepSize**2
-                )
-                qPast = np.copy(temp)
+        initial_val = (q, qPast)
+        
+        body_func = lambda i, val: _stormerVerletBodyFunc(i, val, self.stepSize, self.gradient, mass)
 
-            self.v[:, i] = (self.q[:, i] - qPast) / self.stepSize
-            self.p[:, i] = self.v[:, i] * self.mass[i]
+        final_val = jax.lax.fori_loop(0, self.numSteps, body_func, initial_val)
+
+        q, qPast = final_val
+        v = (q - qPast) / self.stepSize
+        p = v * mass
         # return postion and momenta of all particles at finalTime
-        return (self.q, self.p)
+        return (q, p)
+
+
+
+def _leapfrogBodyFunc(i, val, stepSize, gradient, mass):
+    q, v, currentAccel = val
+    q = q + v * stepSize + 0.5 * currentAccel * stepSize ** 2
+    nextAccel = - gradient(q) / mass
+    v = v + 0.5 * (currentAccel + nextAccel) * stepSize
+    currentAccel = jnp.copy(nextAccel)
+    val = (q, v, currentAccel)
+    return val
+
+def _stormerVerletBodyFunc(i, val, stepSize, gradient, mass):
+    q, qPast = val
+    temp = jnp.copy(q)
+    q = 2 * q - qPast - stepSize ** 2 * gradient(q) / mass
+    qPast = jnp.copy(temp)
+    val = (q, qPast)
+    return val
