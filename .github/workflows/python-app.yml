@@ -43,5 +43,5 @@ jobs:
         echo "Current directory: $PWD"  >> $GITHUB_STEP_SUMMARY
         pytest test_ensemble.py >> $GITHUB_STEP_SUMMARY
         pytest test_potential.py >> $GITHUB_STEP_SUMMARY
-        #pytest test_converter.py >> $GITHUB_STEP_SUMMARY
+        pytest test_converter.py >> $GITHUB_STEP_SUMMARY
         #pytest test_integrator_harmonic.py >> $GITHUB_STEP_SUMMARY
