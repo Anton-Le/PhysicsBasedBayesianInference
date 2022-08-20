@@ -57,8 +57,8 @@ class Ensemble:
              potential (function):
          """
          for particleId in range(self.numParticles):
-             kineticEnergy = np.sum((self.p[:,particleId] ** 2 / (2 * self.mass[particleId])), axis=0)
-             hamiltonian = potential(self.q[:,particleId]) + kineticEnergy
+             kineticEnergy = np.sum((self.p[particleId] ** 2 / (2 * self.mass[particleId])), axis=0)
+             hamiltonian = potential(self.q[particleId]) + kineticEnergy
              self.weights[particleId] = np.exp(- hamiltonian / (boltzmannConst * temperature))
 
     def setPosition(self, qStd):

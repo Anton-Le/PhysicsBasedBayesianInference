@@ -90,7 +90,7 @@ def test1():
     z = densityFunc(q)
 
 
-    cmap = plt.get_cmap("Pastel1").copy()
+    cmap = plt.get_cmap("Pastel1")
 
     contour = ax.contour(
         x_mesh,
