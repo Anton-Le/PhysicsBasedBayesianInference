@@ -11,6 +11,9 @@ from mpl_toolkits import mplot3d
 from scipy.constants import k as boltzmannConst
 from scipy.stats import norm
 from ensemble import Ensemble
+import jax
+import jax.numpy as jnp
+
 
 
 def boltzmannDistribution(velocity, temperature, mass):
@@ -26,8 +29,16 @@ def boltzmannDistribution(velocity, temperature, mass):
 def test_init():
     numDimensions = 4
     numParticles = 100
+    temperature = 10
+    seed = 10
 
-    ensemble = Ensemble(numDimensions, numParticles)
+    ensemble = Ensemble(
+        numParticles, 
+        numDimensions, 
+        temperature, 
+        jax.random.PRNGKey(seed)
+        )
+
 
     # expected output
     q_expected = np.zeros(numDimensions)
@@ -47,8 +58,16 @@ def test_init():
 def main():
     numDimensions = 4
     numParticles = 100
+    temperature = 10
+    seed = 10
 
-    ensemble1 = Ensemble(numDimensions, numParticles)
+    ensemble1 = Ensemble(
+        numParticles, 
+        numDimensions, 
+        temperature, 
+        jax.random.PRNGKey(seed)
+        )
+
 
     # expected output
     qExp = np.zeros(numDimensions)
@@ -60,6 +79,7 @@ def main():
     
     try:
         _ = ensemble1.particle(numParticles + 1)
+        assert False, "No IndexError"
         print("Test 2 Failed")
     except IndexError as error:
         print(error)
@@ -76,9 +96,15 @@ def main():
         velocity, temperature2, constMass
     )
 
-    ensemble2 = Ensemble(numDimensions2, numParticles2)
+    ensemble2 =Ensemble(
+        numParticles2, 
+        numDimensions2, 
+        temperature2, 
+        jax.random.PRNGKey(seed)
+        )
+
     ensemble2.mass = mass2
-    ensemble2.setMomentum(temperature2)
+    ensemble2.setMomentum()
     ensemble2.setPosition(3)
 
     momentum = ensemble2.p
@@ -87,6 +113,11 @@ def main():
     vLinspace = np.linspace(0, max(velocityMagnitudes), 100)
     freq = boltzmannDist2(vLinspace)
 
+    ensemble2.setMomentum()
+    momentum2 = ensemble2.p
+
+    assert (momentum2 != momentum).all(), 'Momenta not randomly set'
+
     plt.hist(velocityMagnitudes, bins=30, density=True)
     plt.plot(vLinspace, freq)
     plt.show()
@@ -94,3 +125,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
