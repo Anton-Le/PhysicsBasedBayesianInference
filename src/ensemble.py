@@ -8,10 +8,15 @@ Contains Ensemble class.
 
 """
 
-import numpy as np
+import jax.numpy as jnp
+import jax
+from jax import vmap, jit
 from scipy.stats import norm
 from scipy.constants import k as boltzmannConst
 from potential import nBodyPotential
+from functools import partial
+
+jax.config.update("jax_enable_x64", True) # required or mass (1e-27) * Boltzmann is too small -> 0
 
 
 class Ensemble:
@@ -22,7 +27,7 @@ class Ensemble:
         particle, as well as the potential function.
     """
 
-    def __init__(self, numDimensions, numParticles):
+    def __init__(self, numParticles, numDimensions, temperature, key):
         """
         @description:
             Initialize ensemble object
@@ -37,29 +42,25 @@ class Ensemble:
 
         self.numParticles = numParticles
         self.numDimensions = numDimensions
-        self.q = np.zeros((numParticles, numDimensions))
-        self.p = np.zeros((numParticles, numDimensions))
-        self.mass = np.ones(numParticles)
-        self.weights = np.zeros(numParticles)
+        self.temperature = temperature
+        self.q = jnp.zeros((numParticles, numDimensions))
+        self.p = jnp.zeros((numParticles, numDimensions))
+        self.mass = jnp.ones(numParticles)
+        self.weights = jnp.zeros(numParticles)
+        self.key = key
 
     def __iter__(self):
         """
         @description:
             Allows for easy unpacking of ensemble object.
         """
-        return self.q, self.p, self.mass, self.weights
+        things = (self.q, self.p, self.mass, self.temperature, self.key)
+        return iter(things)
 
-    def setWeights(self, potential, temperature):
-         """
-         @description:
-             Set probabilistic weights.
-          @parameters:
-             potential (function):
-         """
-         for particleId in range(self.numParticles):
-             kineticEnergy = np.sum((self.p[particleId] ** 2 / (2 * self.mass[particleId])), axis=0)
-             hamiltonian = potential(self.q[particleId]) + kineticEnergy
-             self.weights[particleId] = np.exp(- hamiltonian / (boltzmannConst * temperature))
+
+    def __str__(self):
+        return f'Ensemble: \n q:{self.q} \n p:{self.p} \n'
+
 
     def setPosition(self, qStd):
         """
@@ -69,15 +70,15 @@ class Ensemble:
             mass (ndarray): Length of numParticles
             q_std (float): Standard deviation in positions.
         """
+        self.key, subkey = jax.random.split(self.key)
 
-
-        self.q = norm.rvs(
-            scale=qStd, size=(self.numParticles, self.numDimensions)
+        self.q = qStd * jax.random.normal(
+            subkey, shape=(self.numParticles, self.numDimensions,)
         )
 
         return self.q
 
-    def setMomentum(self, temperature):
+    def setMomentum(self):
         """
         @description:
             Distribute momentum based on a thermal distribution.
@@ -86,13 +87,29 @@ class Ensemble:
             mass (ndarray): Length of numParticles
             temperature (float)
         """
-        # thermal distribution
-        pStd = np.sqrt(self.mass * boltzmannConst * temperature)
-        self.p = norm.rvs(
-            scale=pStd[:, None], size=(self.numParticles, self.numDimensions)
+        self.key, subkey = jax.random.split(self.key)
+
+        pStd = jnp.sqrt(self.mass * boltzmannConst * self.temperature)
+
+        self.p = pStd[:, None] * jax.random.normal(
+            subkey, shape=(self.numParticles, self.numDimensions,)
         )
 
+
         return self.p
+
+
+
+    def setWeights(self, potential):
+        self.weights = _setWeights(
+            potential,
+            self.temperature,
+            self.q,
+            self.p,
+            self.mass
+            )
+        return self.weights
+
 
     def particle(self, particleNum):
         """
@@ -114,3 +131,10 @@ class Ensemble:
             self.mass[particleNum],
             self.weights[particleNum],
         )
+
+
+@partial(vmap, in_axes=(None, None, 0, 0, 0))
+def _setWeights(potential, temperature, q, p, mass):
+    H = 0.5 * jnp.dot(p, p) / mass + potential(q) 
+    return jnp.exp(-H / (boltzmannConst * temperature))
+
