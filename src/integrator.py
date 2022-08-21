@@ -92,6 +92,7 @@ class Leapfrog(Integrator):
         p = jnp.copy(p)
 
         v = p / mass     
+
         currentAccel = - self.gradient(q) / mass
 
 

@@ -57,7 +57,6 @@ if __name__=='__main__':
     qStd = 1
     stepSize = 0.001
     finalTime = 0.1
-    numSamples = 1
     random_seed = 1234
     rng_key = jax.random.PRNGKey(random_seed)
     seed(model, rng_key)
@@ -67,29 +66,26 @@ if __name__=='__main__':
     cov = np.dot(cov, cov.T)  # variance must be positive
     initialPositionDensityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov)
 
-    ensemble = Ensemble(
-        numParticles,
-        numDimensions,
-        temperature,
-        rng_key)
+    ensemble = Ensemble(numParticles, numDimensions, temperature, rng_key)
     # set the weights and momenta
     ensemble.setPosition(qStd)
     ensemble.setMomentum()
     ensemble.setWeights(statModel.potential)
 
     # compute initial mean values
-    initialEstimate = jnp.zeros(numDimensions)
+    initialEstimate = np.zeros(numDimensions)
     Z = 0.0
     for particleId in range(numParticles):
         q, _, _, w = ensemble.particle(particleId)
-        initialEstimate += initialEstimate + w*q;
+        initialEstimate += w*q;
         Z += w;
     initialEstimate /= Z;
     print("Mean parameters after initialisation: \n", initialEstimate)
 
     print("Mean parameters after initialisation, transformed: \n", statModel.converter.toArray(statModel.constraint_fn(statModel.converter.toDict(initialEstimate))) )
+    
     # HMC algorithm
-    hmcObject = HMC( 
+    hmcObject = HMC(
         finalTime, 
         stepSize, 
         initialPositionDensityFunc, 
@@ -97,11 +93,8 @@ if __name__=='__main__':
         gradient=statModel.grad
     )
 
-    print(f'{type(statModel.grad(jnp.ones(2)))=}')
-
     ensemble = hmcObject.propagate_ensemble(ensemble)
-
-    print("Obtained samples: \n", hmcSamples)
-    meanParameter = jnp.mean( ensemble.q, axis=1)
+    print("Obtained samples: \n", ensemble.q)
+    meanParameter = np.mean( ensemble.q, axis=0)
     print("Mean parameters after HMC: \n", meanParameter )
     print("Mean parameters after HMC, transformed: \n", statModel.converter.toArray(statModel.constraint_fn(statModel.converter.toDict(meanParameter))) )
