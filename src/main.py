@@ -67,41 +67,34 @@ if __name__=='__main__':
     cov = np.dot(cov, cov.T)  # variance must be positive
     initialPositionDensityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov)
 
-    ensemble = Ensemble(
-        numParticles,
-        numDimensions,
-        temperature,
-        rng_key)
+    ensemble = Ensemble(numDimensions, numParticles)
     # set the weights and momenta
     ensemble.setPosition(qStd)
-    ensemble.setMomentum()
-    ensemble.setWeights(statModel.potential)
+    ensemble.setMomentum(temperature)
+    ensemble.setWeights(statModel.potential, temperature)
 
     # compute initial mean values
-    initialEstimate = jnp.zeros(numDimensions)
+    initialEstimate = np.zeros(numDimensions)
     Z = 0.0
     for particleId in range(numParticles):
         q, _, _, w = ensemble.particle(particleId)
-        initialEstimate += initialEstimate + w*q;
+        initialEstimate += w*q;
         Z += w;
     initialEstimate /= Z;
     print("Mean parameters after initialisation: \n", initialEstimate)
 
     print("Mean parameters after initialisation, transformed: \n", statModel.converter.toArray(statModel.constraint_fn(statModel.converter.toDict(initialEstimate))) )
     # HMC algorithm
-    hmcObject = HMC( 
+    hmcObject = HMC(
+        ensemble, 
         finalTime, 
         stepSize, 
         initialPositionDensityFunc, 
         potential=statModel.potential, 
         gradient=statModel.grad
     )
-
-    print(f'{type(statModel.grad(jnp.ones(2)))=}')
-
-    ensemble = hmcObject.propagate_ensemble(ensemble)
-
+    hmcSamples, _ = hmcObject.getSamples(numSamples, temperature, qStd)
     print("Obtained samples: \n", hmcSamples)
-    meanParameter = jnp.mean( ensemble.q, axis=1)
+    meanParameter = np.mean( hmcSamples, axis=1)
     print("Mean parameters after HMC: \n", meanParameter )
     print("Mean parameters after HMC, transformed: \n", statModel.converter.toArray(statModel.constraint_fn(statModel.converter.toDict(meanParameter))) )
