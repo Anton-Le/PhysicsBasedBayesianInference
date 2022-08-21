@@ -10,11 +10,17 @@ Contains Ensemble class.
 
 import jax.numpy as jnp
 import jax
+<<<<<<< HEAD
 from jax import vmap, jit
 from scipy.stats import norm
 from scipy.constants import k as boltzmannConst
 from potential import nBodyPotential
 from functools import partial
+=======
+from scipy.stats import norm
+from scipy.constants import k as boltzmannConst
+from potential import nBodyPotential
+>>>>>>> upstream/bugfix-ensembleInHMC
 jax.config.update("jax_enable_x64", True) # required or mass (1e-27) * Boltzmann is too small -> 0
 
 
@@ -136,3 +142,4 @@ class Ensemble:
 def _setWeights(potential, temperature, q, p, mass):
     H = 0.5 * jnp.dot(p, p) / mass + potential(q) 
     return jnp.exp(-H / (boltzmannConst * temperature))
+
