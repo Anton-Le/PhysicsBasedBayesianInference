@@ -20,16 +20,17 @@ from jax import grad, pmap
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
-from jax.config import config
 
-numpyro.set_platform("gpu")
+# numpyro.set_platform("gpu")
 
 float64 = True
-config.update("jax_enable_x64", float64)
+jax.config.update("jax_enable_x64", float64)
 if float64:
     minError = np.finfo(float).eps
 else:
     minError = np.finfo('float32').eps
+
+
 
 
 springConsts = np.array((2.0, 3.0))  # must be floats to work with grad
@@ -57,7 +58,9 @@ def harmonic_test(stepSize, numParticles, method):
     numDimensions = 2  # must match len(springConsts)
     mass = 1
     temperature = 1
+    seed = 10
     q_std = 10
+    key = jax.random.PRNGKey(seed)
 
     # integrator setup
 
@@ -71,10 +74,11 @@ def harmonic_test(stepSize, numParticles, method):
     mass = np.ones(numParticles) * mass
 
     # ensemble initialization
-    ensemble1 = Ensemble(numDimensions, numParticles)
+    ensemble1 = Ensemble(numParticles, numDimensions, temperature, key,)
     ensemble1.mass = mass
     ensemble1.setPosition(q_std)
-    ensemble1.setMomentum(temperature)
+    ensemble1.setMomentum()
+
     q, p = ensemble1.q, ensemble1.p
 
 
@@ -163,5 +167,4 @@ def freeParticleAnalytic(ensemble, numSteps, dt):
     q = ensemble.q * time * ensemble.p / ensemble.mass
 
     return q, ensemble.p
-
 
