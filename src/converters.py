@@ -12,6 +12,7 @@ import numpyro
 import jax 
 import numpy as np
 from collections import OrderedDict
+import jax.numpy as jnp
 
 class Converter:
     def __init__(self, model, modelArguments : tuple, modelData : dict):
@@ -55,8 +56,11 @@ class Converter:
         back into an array
         """
         vec = np.zeros( self.vectorSize )
+        # vec = jnp.zeros( self.vectorSize )
+
         arrayIdx = 0
         for paramName in self.parametersAndShapes.keys():
             vec[arrayIdx:arrayIdx + self.parametersAndShapes[paramName] ] = parameterDictionary[paramName] #.copy()
+            # vec = vec.at[arrayIdx:arrayIdx + self.parametersAndShapes[paramName] ].set( parameterDictionary[paramName] )#.copy()
             arrayIdx += self.parametersAndShapes[paramName]
-        return vec
+        return jnp.array(vec)
