@@ -11,7 +11,6 @@ and dictionaries.
 import numpyro
 import jax 
 import numpy as np
-import jax.numpy as jnp
 from collections import OrderedDict
 
 class Converter:
@@ -55,9 +54,9 @@ class Converter:
         Function that will convert a dictionary of parameters
         back into an array
         """
-        vec = jnp.zeros( self.vectorSize )
+        vec = np.zeros( self.vectorSize )
         arrayIdx = 0
         for paramName in self.parametersAndShapes.keys():
-            vec = vec.at[arrayIdx:arrayIdx + self.parametersAndShapes[paramName] ].set( parameterDictionary[paramName] ) #.copy()
+            vec[arrayIdx:arrayIdx + self.parametersAndShapes[paramName] ] = parameterDictionary[paramName] #.copy()
             arrayIdx += self.parametersAndShapes[paramName]
         return vec
