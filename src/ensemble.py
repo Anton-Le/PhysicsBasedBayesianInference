@@ -99,6 +99,12 @@ class Ensemble:
 
         return self.p
 
+
+    def setWeights(self, potential):
+        self.weights = _setWeights(potential, self.temperature, self.q, self.p, self.mass)
+        return self.weights
+        
+
     def particle(self, particleNum):
         """
         @description:

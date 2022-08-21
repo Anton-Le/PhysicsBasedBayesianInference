@@ -55,12 +55,13 @@ class Converter:
         Function that will convert a dictionary of parameters
         back into an array
         """
-        vec = np.zeros( self.vectorSize )
-        # vec = jnp.zeros( self.vectorSize )
+        # vec = np.zeros( self.vectorSize )
+        vec = jnp.zeros( self.vectorSize )
 
         arrayIdx = 0
         for paramName in self.parametersAndShapes.keys():
-            vec[arrayIdx:arrayIdx + self.parametersAndShapes[paramName] ] = parameterDictionary[paramName] #.copy()
-            # vec = vec.at[arrayIdx:arrayIdx + self.parametersAndShapes[paramName] ].set( parameterDictionary[paramName] )#.copy()
+            vec = vec.at[arrayIdx:(arrayIdx + self.parametersAndShapes[paramName]) ].set(
+            jnp.ravel(parameterDictionary[paramName]) # ravel is needed to avoid error
+            )
             arrayIdx += self.parametersAndShapes[paramName]
         return jnp.array(vec)
