@@ -47,32 +47,53 @@ model = coin_toss
 
 typeConverter = Converter(model, (), modelDataDictionary)
 
-# Simple test of proper functioning of the converter
+def test_toDict():
+    # Simple test of proper functioning of the converter
+    convertedDictionary = typeConverter.toDict(parameterVector)
+    
+    for key in convertedDictionary.keys():
+        assert (
+            convertedDictionary[key] == referenceParameterDictionary[key]
+        ), "Dictionary elements not identical"
 
-convertedDictionary = typeConverter.toDict(parameterVector)
+    print("Dictionary conversion successful!")
+    print("Reference: ", referenceParameterDictionary)
+    print("Obtained: ", convertedDictionary)
 
-for key in convertedDictionary.keys():
+def test_toArray():
+    convertedVector = typeConverter.toArray(referenceParameterDictionary)
     assert (
-        convertedDictionary[key] == referenceParameterDictionary[key]
-    ), "Dictionary elements not identical"
+        convertedVector.size == parameterVector.size
+    ), "Vector sizes do not match for converted vector!"
 
-print("Dictionary conversion successful!")
-print("Reference: ", referenceParameterDictionary)
-print("Obtained: ", convertedDictionary)
-
-convertedVector = typeConverter.toArray(referenceParameterDictionary)
-
-assert (
-    convertedVector.size == parameterVector.size
-), "Vector sizes do not match for converted vector!"
-
-for i in range(convertedVector.size):
-    assert convertedVector[i] == parameterVector[i], "Vector elements differ"
+    for i in range(convertedVector.size):
+        assert convertedVector[i] == parameterVector[i], "Vector elements differ"
+    
+    
+    print("Array conversion succesful!")
+    print("Reference: ", parameterVector)
+    print("Obtained: ", convertedVector)
 
 
-print("Array conversion succesful!")
-print("Reference: ", parameterVector)
-print("Obtained: ", convertedVector)
+def test_modelGradient():
+    """
+    This function tests the computation of the gradient of
+    the Coin Toss model at the true parameter values.
+    Hence the expected result should be the 0-vector.
+    """
+    grad = statisticalModelGradient(
+        model, parameterVector, typeConverter, (), modelDataDictionary
+    )
+    for i in range(grad.size):
+        assert grad[i] == 0, "Gradient values erroneous!"
+    #print("Computed gradient :", grad)
+
+
+
+# Run the tests
+
+test_toDict()
+test_toArray()
 
 # testing the potential functions
 
@@ -82,12 +103,6 @@ potentialValue = statisticalModelPotential(
 
 print("Computed potential value :", potentialValue)
 
-grad = statisticalModelGradient(
-    model, parameterVector, typeConverter, (), modelDataDictionary
-)
-
-print("Computed gradient :", grad)
-
 # perform the same test with the statisticalModel class
 
 statModel = statisticalModel(model, (), modelDataDictionary)
@@ -95,6 +110,8 @@ statModel = statisticalModel(model, (), modelDataDictionary)
 potentialValue = statModel.potential(parameterVector)
 
 print("Potential value computed with the model class: ", potentialValue)
+
+test_modelGradient()
 
 grad = statModel.grad(parameterVector)
 
