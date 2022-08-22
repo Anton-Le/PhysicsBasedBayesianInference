@@ -142,7 +142,7 @@ class HMC:
 
     def getWeight(self, q, p, mass, temperature):
         H = 0.5 * jnp.dot(p, p) / mass + self.potential(q)
-        return jnp.exp(- H / boltzmannConst * temperature)
+        return jnp.exp(- H / (boltzmannConst * temperature))
 
 
     def print_information(self):

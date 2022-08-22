@@ -101,14 +101,14 @@ class Ensemble:
 
 
     def setWeights(self, potential):
-        self.weights = _setWeights(potential, self.q, self.p, self.mass)
+        self.weights = self._setWeights(potential, self.q, self.p, self.mass)
         return self.weights
 
 
     def getWeightedMean(self):
         Z = jnp.sum(self.weights)
         weight_times_q = self.q * self.weights[:, None]
-        top_sum = jnp.sum(weight_times_q)
+        top_sum = jnp.sum(weight_times_q, axis=0)
         return ((top_sum / Z), Z)
         
 
@@ -137,5 +137,5 @@ class Ensemble:
     @partial(vmap, in_axes=(None, None, 0, 0, 0))
     def _setWeights(self, potential, q, p, mass):
         H = 0.5 * jnp.dot(p, p) / mass + potential(q) 
-        return jnp.exp(-H / (boltzmannConst * temperature))
+        return jnp.exp(-H / (boltzmannConst * self.temperature))
 
