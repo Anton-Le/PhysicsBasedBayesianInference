@@ -34,7 +34,7 @@ def test():
     seed = 10
     key = jax.random.PRNGKey(seed)  
 
-    ensemble = Ensemble(numParticles, numDimensions, temperature, key)
+    ensemble = Ensemble(numDimensions, numParticles, temperature, key)
     
 
     # PDF Setup

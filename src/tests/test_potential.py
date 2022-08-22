@@ -12,7 +12,7 @@ def test_potential():
     springConsts = jnp.array([2, 3])
     harmonicPotential1 = lambda q: harmonicPotentialND(q, springConsts)
 
-    ensemble = Ensemble(10, 2, 1, [0, 10])
+    ensemble = Ensemble(2, 10, 1, [0, 10])
     ensemble.mass = jnp.ones(10)
 
     print("We expect a potential of 2*3^2 + 3*4^2 / 2 =18+48 /2=33 at (3, 4)")

@@ -165,7 +165,7 @@ class HMC:
 
         # make new ensemble object with updated attributes
 
-        ensemble = Ensemble(numParticles, numDimensions, temperature, key)
+        ensemble = Ensemble(numDimensions, numParticles, temperature, key)
         ensemble.q = q
         ensemble.p = p
         ensemble.weights = weights

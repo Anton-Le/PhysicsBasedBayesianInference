@@ -28,7 +28,7 @@ class Ensemble:
         particle, as well as the potential function.
     """
 
-    def __init__(self, numParticles, numDimensions, temperature, key):
+    def __init__(self, numDimensions, numParticles, temperature, key):
         """
         @description:
             Initialize ensemble object
@@ -101,8 +101,15 @@ class Ensemble:
 
 
     def setWeights(self, potential):
-        self.weights = _setWeights(potential, self.temperature, self.q, self.p, self.mass)
+        self.weights = _setWeights(potential, self.q, self.p, self.mass)
         return self.weights
+
+
+    def getWeightedMean(self):
+        Z = jnp.sum(self.weights)
+        weight_times_q = self.q * self.weights[:, None]
+        top_sum = jnp.sum(weight_times_q)
+        return ((top_sum / Z), Z)
         
 
     def particle(self, particleNum):
@@ -127,8 +134,8 @@ class Ensemble:
         )
 
 
-@partial(vmap, in_axes=(None, None, 0, 0, 0))
-def _setWeights(potential, temperature, q, p, mass):
-    H = 0.5 * jnp.dot(p, p) / mass + potential(q) 
-    return jnp.exp(-H / (boltzmannConst * temperature))
+    @partial(vmap, in_axes=(None, None, 0, 0, 0))
+    def _setWeights(self, potential, q, p, mass):
+        H = 0.5 * jnp.dot(p, p) / mass + potential(q) 
+        return jnp.exp(-H / (boltzmannConst * temperature))
 

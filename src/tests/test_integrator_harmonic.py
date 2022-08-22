@@ -74,7 +74,7 @@ def harmonic_test(stepSize, numParticles, method):
     mass = np.ones(numParticles) * mass
 
     # ensemble initialization
-    ensemble1 = Ensemble(numParticles, numDimensions, temperature, key,)
+    ensemble1 = Ensemble(numDimensions, numParticles, temperature, key,)
     ensemble1.mass = mass
     ensemble1.setPosition(q_std)
     ensemble1.setMomentum()

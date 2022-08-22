@@ -33,8 +33,8 @@ def test_init():
     seed = 10
 
     ensemble = Ensemble(
-        numParticles, 
-        numDimensions, 
+        numDimensions,
+        numParticles,  
         temperature, 
         jax.random.PRNGKey(seed)
         )
@@ -62,8 +62,8 @@ def main():
     seed = 10
 
     ensemble1 = Ensemble(
-        numParticles, 
-        numDimensions, 
+        numDimensions,
+        numParticles,  
         temperature, 
         jax.random.PRNGKey(seed)
         )
@@ -97,8 +97,8 @@ def main():
     )
 
     ensemble2 =Ensemble(
-        numParticles2, 
-        numDimensions2, 
+        numDimensions2,
+        numParticles2,  
         temperature2, 
         jax.random.PRNGKey(seed)
         )

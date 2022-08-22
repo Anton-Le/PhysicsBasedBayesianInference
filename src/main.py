@@ -25,29 +25,42 @@ from scipy.constants import Boltzmann
 # import function used to initialize the
 # distribution of positions.
 from jax.scipy.stats import multivariate_normal
+from mpi4py import MPI, rc
+import mpi4jax
+rc.threaded = True
+rc.thread_level = "funneled"
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank ()
+size = comm.Get_size ()
+
 
 if __name__=='__main__':
     # select the platform
     platform = "cpu"
 
     numpyro.set_platform(platform)
-    # Print run-time configuration infromation
-    print(f"jax version: {jax.__version__}")
-    print(f"numpyro version: {numpyro.__version__}")
-    print(f"jax target backend: {jax.config.FLAGS.jax_backend_target}")
-    print(f"jax target device: {jax.lib.xla_bridge.get_backend().platform}")
-    devices = jax.devices(platform)
-    print("Available devices:")
-    print(devices)
-    
-    # load model data and set up the statistical model
-    # Load the observed outcomes and the reference biases
-    data = json.load(
-        open("CoinToss.data.json")
-    )
-    modelDataDictionary = {"c1": np.array(data["c1"]), "c2": np.array(data["c2"])}
+    # Print run-time configuration infromation  
+
+    if rank == 0:
+        print(f"jax version: {jax.__version__}")
+        print(f"numpyro version: {numpyro.__version__}")
+        print(f"jax target backend: {jax.config.FLAGS.jax_backend_target}")
+        print(f"jax target device: {jax.lib.xla_bridge.get_backend().platform}")
+        devices = jax.devices(platform)
+        print("Available devices:")
+        print(devices)
+        
+        # load model data and set up the statistical model
+        # Load the observed outcomes and the reference biases
+        data = json.load(
+            open("CoinToss.data.json")
+        )
+        modelDataDictionary = {"c1": np.array(data["c1"]), "c2": np.array(data["c2"])}
+    else:
+        modelDataDictionary = None
     model = coin_toss
     # CAVEAT: model arguments are an empty tuple here, subject to change!
+    modelDataDictionary = comm.bcast(modelDataDictionary, root=0)
     statModel = statisticalModel(model, (), modelDataDictionary)
 
     # Define run-time parameters (to be acquired from command line later
@@ -58,6 +71,7 @@ if __name__=='__main__':
     stepSize = 0.001
     finalTime = 0.1
     random_seed = 1234
+    random_seed = random_seed + rank
     rng_key = jax.random.PRNGKey(random_seed)
     seed(model, rng_key)
     # Set up the initial distribution of particles
@@ -73,16 +87,17 @@ if __name__=='__main__':
     ensemble.setWeights(statModel.potential)
 
     # compute initial mean values
-    initialEstimate = np.zeros(numDimensions)
-    Z = 0.0
-    for particleId in range(numParticles):
-        q, _, _, w = ensemble.particle(particleId)
-        initialEstimate += w*q;
-        Z += w;
-    initialEstimate /= Z;
-    print("Mean parameters after initialisation: \n", initialEstimate)
+    initialEstimate, initialZ = ensemble.getWeightedMean()
 
-    print("Mean parameters after initialisation, transformed: \n", statModel.converter.toArray(statModel.constraint_fn(statModel.converter.toDict(initialEstimate))) )
+    initialZSum = mpi4jax.reduce(initial_z, mpi4py.MPI.SUM, root=0)
+
+    initialWeightedSums = mpi4jax.gather(initialEstimate * initialZ, comm=comm, root=0)
+
+    initialWeightedMean = initialWeightedSum / initialZSum
+
+    print(f"Mean parameters after initialisation ({rank=}) \n", initialEstimate)
+
+    print(f"Mean parameters after initialisation, transformed ({rank=}): \n", statModel.converter.toArray(statModel.constraint_fn(statModel.converter.toDict(initialEstimate))) )
     
     # HMC algorithm
     hmcObject = HMC(
@@ -95,6 +110,6 @@ if __name__=='__main__':
 
     ensemble = hmcObject.propagate_ensemble(ensemble)
     print("Obtained samples: \n", ensemble.q)
-    meanParameter = np.mean( ensemble.q, axis=0)
-    print("Mean parameters after HMC: \n", meanParameter )
-    print("Mean parameters after HMC, transformed: \n", statModel.converter.toArray(statModel.constraint_fn(statModel.converter.toDict(meanParameter))) )
+    meanParameter = ensemble.getWeightedMean()
+    print(f"Mean parameters after HMC ({rank=}): \n", meanParameter )
+    print(f"Mean parameters after HMC, transformed ({rank=}): \n", statModel.converter.toArray(statModel.constraint_fn(statModel.converter.toDict(meanParameter))) )
