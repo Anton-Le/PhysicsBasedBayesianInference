@@ -15,15 +15,14 @@ import jax
 import jax.numpy as jnp
 
 
-
 def boltzmannDistribution(velocity, temperature, mass):
     """Velocity boltzman distribution (for magnitude of velocity)
     https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution#Distribution_function
     """
     mOver2kt = mass / (2 * boltzmannConst * temperature)
     prefactor1 = (mOver2kt / np.pi) ** (3 / 2)
-    prefactor2 = 4 * np.pi * velocity**2
-    return prefactor1 * prefactor2 * np.exp(-(velocity**2) * mOver2kt)
+    prefactor2 = 4 * np.pi * velocity ** 2
+    return prefactor1 * prefactor2 * np.exp(-(velocity ** 2) * mOver2kt)
 
 
 def test_init():
@@ -33,19 +32,14 @@ def test_init():
     seed = 10
 
     ensemble = Ensemble(
-        numDimensions,
-        numParticles,  
-        temperature, 
-        jax.random.PRNGKey(seed)
-        )
-
+        numDimensions, numParticles, temperature, jax.random.PRNGKey(seed)
+    )
 
     # expected output
     q_expected = np.zeros(numDimensions)
     p_expected = np.zeros(numDimensions)
-    m_expected = 1.0#0.0
+    m_expected = 1.0  # 0.0
     w_expected = 0.0
-
 
     q1, p1, m1, w1 = ensemble.particle(10)
 
@@ -62,12 +56,8 @@ def main():
     seed = 10
 
     ensemble1 = Ensemble(
-        numDimensions,
-        numParticles,  
-        temperature, 
-        jax.random.PRNGKey(seed)
-        )
-
+        numDimensions, numParticles, temperature, jax.random.PRNGKey(seed)
+    )
 
     # expected output
     qExp = np.zeros(numDimensions)
@@ -76,7 +66,7 @@ def main():
     wExp = 0.0
 
     test_init()
-    
+
     try:
         _ = ensemble1.particle(numParticles + 1)
         assert False, "No IndexError"
@@ -96,12 +86,9 @@ def main():
         velocity, temperature2, constMass
     )
 
-    ensemble2 =Ensemble(
-        numDimensions2,
-        numParticles2,  
-        temperature2, 
-        jax.random.PRNGKey(seed)
-        )
+    ensemble2 = Ensemble(
+        numDimensions2, numParticles2, temperature2, jax.random.PRNGKey(seed)
+    )
 
     ensemble2.mass = mass2
     ensemble2.setMomentum()
@@ -116,7 +103,7 @@ def main():
     ensemble2.setMomentum()
     momentum2 = ensemble2.p
 
-    assert (momentum2 != momentum).all(), 'Momenta not randomly set'
+    assert (momentum2 != momentum).all(), "Momenta not randomly set"
 
     plt.hist(velocityMagnitudes, bins=30, density=True)
     plt.plot(vLinspace, freq)
@@ -125,4 +112,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

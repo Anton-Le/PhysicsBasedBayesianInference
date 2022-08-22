@@ -12,6 +12,7 @@ import numpyro, jax
 import jax.numpy as jnp
 import numpy as np
 import json
+
 # Import the model and the converter
 from CoinToss import coin_toss
 from converters import Converter
@@ -22,18 +23,18 @@ from HMC import HMC
 from numpyro.handlers import seed
 
 from scipy.constants import Boltzmann
+
 # import function used to initialize the
 # distribution of positions.
 from jax.scipy.stats import multivariate_normal
 
 
-if __name__=='__main__':
+if __name__ == "__main__":
     # select the platform
     platform = "cpu"
 
     numpyro.set_platform(platform)
-    # Print run-time configuration infromation  
-
+    # Print run-time configuration infromation
 
     print(f"jax version: {jax.__version__}")
     print(f"numpyro version: {numpyro.__version__}")
@@ -42,20 +43,21 @@ if __name__=='__main__':
     devices = jax.devices(platform)
     print("Available devices:")
     print(devices)
-    
+
     # load model data and set up the statistical model
     # Load the observed outcomes and the reference biases
-    data = json.load(
-        open("CoinToss.data.json")
-    )
-    modelDataDictionary = {"c1": np.array(data["c1"]), "c2": np.array(data["c2"])}
+    data = json.load(open("CoinToss.data.json"))
+    modelDataDictionary = {
+        "c1": np.array(data["c1"]),
+        "c2": np.array(data["c2"]),
+    }
     model = coin_toss
     # CAVEAT: model arguments are an empty tuple here, subject to change!
     statModel = statisticalModel(model, (), modelDataDictionary)
 
     # Define run-time parameters (to be acquired from command line later
     numParticles = 40
-    numDimensions = 2 # fetch from the model!
+    numDimensions = 2  # fetch from the model!
     temperature = 1 / Boltzmann
     qStd = 1
     stepSize = 0.001
@@ -66,9 +68,13 @@ if __name__=='__main__':
 
     # Set up the initial distribution of particles
     mean = jnp.zeros(numDimensions)
-    cov = np.random.uniform(size=(numDimensions, numDimensions))  # random covariance matrix
+    cov = np.random.uniform(
+        size=(numDimensions, numDimensions)
+    )  # random covariance matrix
     cov = np.dot(cov, cov.T)  # variance must be positive
-    initialPositionDensityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov)
+    initialPositionDensityFunc = lambda q: multivariate_normal.pdf(
+        q, mean, cov=cov
+    )
 
     ensemble = Ensemble(numDimensions, numParticles, temperature, rng_key)
     # set the weights and momenta
@@ -81,19 +87,29 @@ if __name__=='__main__':
 
     print(f"Mean parameters after initialisation \n", initialEstimate)
 
-    print(f"Mean parameters after initialisation, transformed: \n", statModel.converter.toArray(statModel.constraint_fn(statModel.converter.toDict(initialEstimate))) )
-    
+    print(
+        f"Mean parameters after initialisation, transformed: \n",
+        statModel.converter.toArray(
+            statModel.constraint_fn(statModel.converter.toDict(initialEstimate))
+        ),
+    )
+
     # HMC algorithm
     hmcObject = HMC(
-        finalTime, 
-        stepSize, 
-        initialPositionDensityFunc, 
-        potential=statModel.potential, 
-        gradient=statModel.grad
+        finalTime,
+        stepSize,
+        initialPositionDensityFunc,
+        potential=statModel.potential,
+        gradient=statModel.grad,
     )
 
     ensemble = hmcObject.propagate_ensemble(ensemble)
     print("Obtained samples: \n", ensemble.q)
     meanParameter, Z = ensemble.getWeightedMean()
-    print(f"Mean parameters after HMC: \n", meanParameter )
-    print(f"Mean parameters after HMC, transformed: \n", statModel.converter.toArray(statModel.constraint_fn(statModel.converter.toDict(meanParameter))) )
+    print(f"Mean parameters after HMC: \n", meanParameter)
+    print(
+        f"Mean parameters after HMC, transformed: \n",
+        statModel.converter.toArray(
+            statModel.constraint_fn(statModel.converter.toDict(meanParameter))
+        ),
+    )

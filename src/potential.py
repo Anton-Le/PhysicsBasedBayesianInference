@@ -17,6 +17,7 @@ import numpyro
 import jax
 from converters import Converter
 
+
 def harmonicPotentialND(q, springConsts):
     """
     @description:
@@ -26,7 +27,7 @@ def harmonicPotentialND(q, springConsts):
         springConsts (ndarray): numDimensions array of spring constants
     """
 
-    return 0.5 * jnp.dot(springConsts, q**2)
+    return 0.5 * jnp.dot(springConsts, q ** 2)
 
 
 def getAccelNBody(q, mass, i):

@@ -16,7 +16,8 @@ from integrator import Leapfrog, StormerVerlet
 import jax
 from functools import partial
 import os
-os.environ['XLA_FLAGS'] ='--xla_force_host_platform_device_count=4'
+
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
 
 jax.config.update("jax_enable_x64", True)  # required or grad returns NaNs
 
@@ -31,9 +32,9 @@ class HMC:
         self,
         # numDimensions,
         simulTime,
-        stepSize,        
-        # temperature, 
-        # qStd, 
+        stepSize,
+        # temperature,
+        # qStd,
         density,
         potential=None,
         gradient=None,
@@ -42,7 +43,7 @@ class HMC:
         """
         @parameters:
 
-            # numDimensions (int): 
+            # numDimensions (int):
             simulTime (float): Duration of Hamiltonian simulation.
             stepSize (float):
             # temperature (float): Determines standard deviation of momentum.
@@ -70,31 +71,28 @@ class HMC:
             self.gradient = grad(self.potential)
 
         if method == "Leapfrog":
-            self.integrator = Leapfrog(
-                stepSize, simulTime, self.gradient
-            )
+            self.integrator = Leapfrog(stepSize, simulTime, self.gradient)
         elif method == "Stormer-Verlet":
-            self.integrator = StormerVerlet(
-                stepSize, simulTime, self.gradient
-            )
+            self.integrator = StormerVerlet(stepSize, simulTime, self.gradient)
         else:
             raise ValueError("Invalid integration method selected.")
 
     def __hash__(self):
-        '''
+        """
         Needed to ensure getSamples is recompiled if any attributes change.
-        '''
-        return hash((
-            # self.numDimensions,
-            self.simulTime,
-            self.stepSize,
-            # self.temperature,
-            # self.qStd,
-            self.potential,
-            self.gradient,
-            self.integrator,
-            ))
-
+        """
+        return hash(
+            (
+                # self.numDimensions,
+                self.simulTime,
+                self.stepSize,
+                # self.temperature,
+                # self.qStd,
+                self.potential,
+                self.gradient,
+                self.integrator,
+            )
+        )
 
     def potentialFunc(self, q):
         """
@@ -106,7 +104,6 @@ class HMC:
             q (ndarray): Position
         """
         return -jnp.log(self.density(q))
-
 
     # def setMomentum(self, key, mass):
     #     """
@@ -121,7 +118,6 @@ class HMC:
     #     pStd = jnp.sqrt(mass * boltzmannConst * self.temperature)
 
     #     return jax.random.normal(key, shape=(self.numDimensions,)) * pStd
-
 
     def getWeightRatio(self, newQ, newP, oldQ, oldP, mass):
         """
@@ -139,27 +135,30 @@ class HMC:
         newH = 0.5 * jnp.dot(newP, newP) / mass + self.potential(newQ)
         return jnp.exp(oldH - newH)
 
-
     def getWeight(self, q, p, mass, temperature):
         H = 0.5 * jnp.dot(p, p) / mass + self.potential(q)
-        return jnp.exp(- H / (boltzmannConst * temperature))
-
+        return jnp.exp(-H / (boltzmannConst * temperature))
 
     def print_information(self):
         print("integrator: ", self.integrator)
         print("final integration time: ", self.simulTime)
         print("time step: ", self.stepSize)
 
-
     def propagate_ensemble(self, ensemble):
         q, p, mass, temperature, key = ensemble
         numParticles, numDimensions = q.shape
-        
-        key, *keys = jax.random.split(key, numParticles+1) # key is returned to be used again
-        keys = jnp.array(keys)
-        ensemble.key = key # update ensemble key
 
-        q, p, mass = jnp.copy(q), jnp.copy(p), jnp.copy(mass) # don't want these to be modified
+        key, *keys = jax.random.split(
+            key, numParticles + 1
+        )  # key is returned to be used again
+        keys = jnp.array(keys)
+        ensemble.key = key  # update ensemble key
+
+        q, p, mass = (
+            jnp.copy(q),
+            jnp.copy(p),
+            jnp.copy(mass),
+        )  # don't want these to be modified
 
         q, p, weights = self.propgate(temperature, q, p, mass, keys)
 
@@ -170,12 +169,15 @@ class HMC:
         ensemble.p = p
         ensemble.weights = weights
 
-        
         return ensemble
 
-
-
-    @partial(jit, static_argnums=(0, 1,))
+    @partial(
+        jit,
+        static_argnums=(
+            0,
+            1,
+        ),
+    )
     @partial(vmap, in_axes=[None, None, 0, 0, 0, 0])
     def propgate(self, temperature, q, p, mass, key):
         proposedQ, proposedP = self.integrator.integrate(q, p, mass)
@@ -188,13 +190,11 @@ class HMC:
             jax.random.uniform(key) < acceptanceProb,
             jnp.array([proposedQ, -proposedP]),
             jnp.array([q, p]),
-            )
+        )
 
         weight = self.getWeight(q, p, mass, temperature)
 
         return (q, p, weight)
-
-
 
     # @partial(jit, static_argnums=(0, 1))
     # @partial(vmap, in_axes=[None, None, 0, 0])
@@ -227,6 +227,7 @@ class HMC:
 
     #     return samples, momentums
 
+
 # def _getSamplesBody(i, val, mass, self):
 #     '''
 #     @description
@@ -234,7 +235,7 @@ class HMC:
 #     '''
 #     samples, momentums, q, key = val
 
-#     key, *subkeys = jax.random.split(key, 3) 
+#     key, *subkeys = jax.random.split(key, 3)
 
 #     p = self.setMomentum(subkeys[0], mass)
 
@@ -247,7 +248,7 @@ class HMC:
 
 #     acceptanceProb = jnp.minimum(1, ratio)
 
-#     key, subkey = jax.random.split(subkeys[1]) 
+#     key, subkey = jax.random.split(subkeys[1])
 
 
 #     q, p = jnp.where(
@@ -256,7 +257,7 @@ class HMC:
 #         jnp.array([q, p]),
 #         )
 
-    
+
 #     # update accepted moves
 #     samples = samples.at[:, i].set(q)
 #     momentums = momentums.at[:, i].set(p)

@@ -71,7 +71,7 @@ for i in range(numIterations):
 fig = plt.figure()
 ax = plt.axes(projection="3d")
 
-for particleNum, name in enumerate(['Earth', 'Sun', 'Moon']):
+for particleNum, name in enumerate(["Earth", "Sun", "Moon"]):
     x = points[0, particleNum, :]
     y = points[1, particleNum, :]
     z = points[2, particleNum, :]

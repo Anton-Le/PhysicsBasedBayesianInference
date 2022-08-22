@@ -19,8 +19,12 @@ def test_potential():
     ensemble.q = ensemble.q.at[0].set(jnp.array([3.0, 4.0]))
     expectedPot = 33
     calculatedPot = harmonicPotential1(ensemble.q[0])
-    print("Calculated potential at (3, 4) with springConsts (2, 3): ", calculatedPot)
+    print(
+        "Calculated potential at (3, 4) with springConsts (2, 3): ",
+        calculatedPot,
+    )
     assert calculatedPot == expectedPot, "ERROR! Incorrect potential value"
 
-if __name__=='__main__':
+
+if __name__ == "__main__":
     test_potential()
