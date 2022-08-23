@@ -92,7 +92,6 @@ def main():
 
     ensemble2.mass = mass2
     ensemble2.setMomentum()
-    ensemble2.setPosition(3)
 
     momentum = ensemble2.p
     momentumMagnitudes = np.linalg.norm(momentum, axis=1)
@@ -108,6 +107,29 @@ def main():
     plt.hist(velocityMagnitudes, bins=30, density=True)
     plt.plot(vLinspace, freq)
     plt.show()
+
+    #test position func
+    numDimensions3 = 2
+    ensemble3 = Ensemble(
+        numDimensions3, numParticles2, temperature2, jax.random.PRNGKey(seed)
+    )
+
+    meanAndVar = 300
+    mean = jnp.ones(numDimensions3) * meanAndVar
+    cov = jnp.diag(mean)
+    positionFunc = lambda key, shape: jax.random.multivariate_normal(
+        key,
+        mean,
+        cov,
+        shape=shape
+        )
+    q = ensemble3.setPosition(positionFunc=positionFunc)
+    fig, ax = plt.subplots()
+    ax.set_title(f'{mean=}, {cov=}')
+
+    ax.scatter(q[:, 0], q[:, 1], label='Initial Positions')
+    plt.show()
+
 
 
 if __name__ == "__main__":
