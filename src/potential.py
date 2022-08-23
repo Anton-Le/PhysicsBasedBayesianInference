@@ -230,7 +230,7 @@ class statisticalModel:
             val = 0.0
             for c_key in dictGrad.keys():
                 val += dictGrad[c_key] * J[c_key][key]
-                unconstrainedGradient[key] = val
+            unconstrainedGradient[key] = val
         del dictGrad
         del J
-        return self.converter.toArray(unconstrainedGradient)
+        return -1*self.converter.toArray(unconstrainedGradient)
