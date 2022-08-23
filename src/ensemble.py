@@ -62,26 +62,32 @@ class Ensemble:
 
     def __str__(self):
         return f"Ensemble: \n q:{self.q} \n p:{self.p} \n"
+        
 
-    def setPosition(self, qStd):
+    def setPosition(self, qStd=1, positionFunc=None):
         """
         @description:
             Distribute position with a normal distribution.
          @parameters:
-            mass (ndarray): Length of numParticles
-            q_std (float): Standard deviation in positions.
+            qStd (float): Standard deviation of initial position. Only used if 
+                            positionFunc not specified.
+            positionFunc (func): Init function taking jax PRNGkey, shape as 
+                            only args
         """
         self.key, subkey = jax.random.split(self.key)
+        shape=(self.numParticles, self.numDimensions,)
 
-        self.q = qStd * jax.random.normal(
-            subkey,
-            shape=(
-                self.numParticles,
-                self.numDimensions,
-            ),
-        )
+        if positionFunc:
+            self.q = positionFunc(subkey, shape)
+
+        else:
+            self.q = qStd * jax.random.normal(
+                subkey,
+                shape=shape,
+            )
 
         return self.q
+
 
     def setMomentum(self):
         """
