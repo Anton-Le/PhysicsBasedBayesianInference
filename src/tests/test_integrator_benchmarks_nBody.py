@@ -27,7 +27,7 @@ Q_STD = 1000
 MASS_VAL = 1e-26
 MASS = np.ones(NUM_PARTICLES) * MASS_VAL
 V_PARTICLES = 500
-TEMPERATURE = MASS_VAL * V_PARTICLES**2 / (2 * Boltzmann)  # T =mv^2 / 2 k_b
+TEMPERATURE = MASS_VAL * V_PARTICLES ** 2 / (2 * Boltzmann)  # T =mv^2 / 2 k_b
 
 METHOD = "Stormer-Verlet"
 STEP_SIZE = 0.01

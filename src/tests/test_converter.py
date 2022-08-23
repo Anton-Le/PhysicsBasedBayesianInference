@@ -25,7 +25,11 @@ sys.path.append("../")
 # Import the model and the converter
 from CoinToss import coin_toss
 from converters import Converter
-from potential import statisticalModelPotential, statisticalModelGradient, statisticalModel
+from potential import (
+    statisticalModelPotential,
+    statisticalModelGradient,
+    statisticalModel,
+)
 
 # Load the observed outcomes and the reference biases
 data = json.load(
@@ -47,10 +51,11 @@ model = coin_toss
 
 typeConverter = Converter(model, (), modelDataDictionary)
 
+
 def test_toDict():
     # Simple test of proper functioning of the converter
     convertedDictionary = typeConverter.toDict(parameterVector)
-    
+
     for key in convertedDictionary.keys():
         assert (
             convertedDictionary[key] == referenceParameterDictionary[key]
@@ -60,6 +65,7 @@ def test_toDict():
     print("Reference: ", referenceParameterDictionary)
     print("Obtained: ", convertedDictionary)
 
+
 def test_toArray():
     convertedVector = typeConverter.toArray(referenceParameterDictionary)
     assert (
@@ -67,9 +73,10 @@ def test_toArray():
     ), "Vector sizes do not match for converted vector!"
 
     for i in range(convertedVector.size):
-        assert convertedVector[i] == parameterVector[i], "Vector elements differ"
-    
-    
+        assert (
+            convertedVector[i] == parameterVector[i]
+        ), "Vector elements differ"
+
     print("Array conversion succesful!")
     print("Reference: ", parameterVector)
     print("Obtained: ", convertedVector)
@@ -86,8 +93,7 @@ def test_modelGradient():
     )
     for i in range(grad.size):
         assert grad[i] == 0, "Gradient values erroneous!"
-    #print("Computed gradient :", grad)
-
+    # print("Computed gradient :", grad)
 
 
 # Run the tests
@@ -116,4 +122,3 @@ test_modelGradient()
 grad = statModel.grad(parameterVector)
 
 print("Gradient computed with the model class: ", grad)
-
