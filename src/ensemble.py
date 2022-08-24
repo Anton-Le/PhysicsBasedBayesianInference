@@ -74,16 +74,16 @@ class Ensemble:
                             only args
         """
         self.key, subkey = jax.random.split(self.key)
-        shape=(self.numParticles, self.numDimensions,)
+        shape = (
+            self.numParticles,
+            self.numDimensions,
+        )
 
         if positionFunc:
             self.q = positionFunc(subkey, shape)
 
         else:
-            self.q = qStd * jax.random.normal(
-                subkey,
-                shape=shape,
-            )
+            self.q = qStd * jax.random.normal(subkey, shape=shape,)
 
         return self.q
 
@@ -101,11 +101,7 @@ class Ensemble:
         pStd = jnp.sqrt(self.mass * boltzmannConst * self.temperature)
 
         self.p = pStd[:, None] * jax.random.normal(
-            subkey,
-            shape=(
-                self.numParticles,
-                self.numDimensions,
-            ),
+            subkey, shape=(self.numParticles, self.numDimensions,),
         )
 
         return self.p

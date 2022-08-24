@@ -172,24 +172,15 @@ class HMC:
         return ensemble
 
     @partial(
-        jit,
-        static_argnums=(
-            0,
-            1,
-        ),
+        jit, static_argnums=(0, 1,),
     )
     @partial(vmap, in_axes=[None, None, 0, 0, 0, 0])
     def propgate(self, temperature, q, p, mass, key):
         proposedQ, proposedP = self.integrator.integrate(q, p, mass)
 
         weightRatio = self.getWeightRatio(
-            proposedQ,
-            proposedP,
-            q,
-            p,
-            mass,
-            temperature
-            )
+            proposedQ, proposedP, q, p, mass, temperature
+        )
 
         acceptanceProb = jnp.minimum(weightRatio, 1)
 
