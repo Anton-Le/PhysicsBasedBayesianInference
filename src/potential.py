@@ -158,10 +158,7 @@ def statisticalModelPotential(
         converter ( Converter ): Converter object to convert arrays to dictionaries
     """
     return -numpyro.infer.util.log_density(
-        model,
-        modelArgs,
-        modelKwargs,
-        converter.toDict(position),
+        model, modelArgs, modelKwargs, converter.toDict(position),
     )[0]
 
 
@@ -200,10 +197,7 @@ class statisticalModel:
         dictPosition = self.converter.toDict(position)
         mappedPositions = self.constraint_fn(dictPosition)
         return -numpyro.infer.util.log_density(
-            self.model,
-            self.modelArgs,
-            self.modelKwargs,
-            mappedPositions,
+            self.model, self.modelArgs, self.modelKwargs, mappedPositions,
         )[0]
 
     def grad(self, position):
@@ -233,4 +227,4 @@ class statisticalModel:
             unconstrainedGradient[key] = val
         del dictGrad
         del J
-        return -1*self.converter.toArray(unconstrainedGradient)
+        return -1 * self.converter.toArray(unconstrainedGradient)

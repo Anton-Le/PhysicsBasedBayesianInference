@@ -119,7 +119,7 @@ class HMC:
 
     #     return jax.random.normal(key, shape=(self.numDimensions,)) * pStd
 
-    def getWeightRatio(self, newQ, newP, oldQ, oldP, mass):
+    def getWeightRatio(self, newQ, newP, oldQ, oldP, mass, temperature):
         """
         @description:
             Get ratio of exp(H) for HMC
@@ -133,7 +133,7 @@ class HMC:
         """
         oldH = 0.5 * jnp.dot(oldP, oldP) / mass + self.potential(oldQ)
         newH = 0.5 * jnp.dot(newP, newP) / mass + self.potential(newQ)
-        return jnp.exp(oldH - newH)
+        return jnp.exp((oldH - newH) / (boltzmannConst * temperature))
 
     def getWeight(self, q, p, mass, temperature):
         H = 0.5 * jnp.dot(p, p) / mass + self.potential(q)
@@ -172,17 +172,15 @@ class HMC:
         return ensemble
 
     @partial(
-        jit,
-        static_argnums=(
-            0,
-            1,
-        ),
+        jit, static_argnums=(0, 1,),
     )
     @partial(vmap, in_axes=[None, None, 0, 0, 0, 0])
     def propgate(self, temperature, q, p, mass, key):
         proposedQ, proposedP = self.integrator.integrate(q, p, mass)
 
-        weightRatio = self.getWeightRatio(proposedQ, proposedP, q, p, mass)
+        weightRatio = self.getWeightRatio(
+            proposedQ, proposedP, q, p, mass, temperature
+        )
 
         acceptanceProb = jnp.minimum(weightRatio, 1)
 

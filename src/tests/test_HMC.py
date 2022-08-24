@@ -61,13 +61,7 @@ def test():
 
     numIterations = 100
 
-    hmcSamples = jnp.zeros(
-        (
-            numIterations,
-            numParticles,
-            numDimensions,
-        )
-    )
+    hmcSamples = jnp.zeros((numIterations, numParticles, numDimensions,))
 
     for i in range(numIterations):
         ensemble.setMomentum()  # numParticles!
@@ -99,13 +93,7 @@ def test():
 
     cmap = plt.get_cmap("Pastel1")
 
-    contour = ax.contour(
-        x_mesh,
-        y_mesh,
-        z,
-        cmap=cmap,
-        zorder=0,
-    )
+    contour = ax.contour(x_mesh, y_mesh, z, cmap=cmap, zorder=0,)
 
     ax.set_title(r"Guassian with mean (5, 5)")
     ax.set_xlabel(r"$x_{1}$")
