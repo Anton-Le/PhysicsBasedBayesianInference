@@ -40,7 +40,7 @@ mcmc.run(
     rng_key,
     t=np.array(data["t"]),
     z=np.array(data["z"]),
-    sigmaObs = float(data['sigmaObs']),
+    sigmaObs=float(data["sigmaObs"]),
     extra_fields=("potential_energy",),
 )
 
