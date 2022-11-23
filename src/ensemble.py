@@ -49,7 +49,7 @@ class Ensemble:
         self.q = jnp.zeros((numParticles, numDimensions))
         self.p = jnp.zeros((numParticles, numDimensions))
         self.mass = jnp.ones(numParticles)
-        self.weights = jnp.zeros(numParticles)
+        self.weights = jnp.ones(numParticles) #* 1.0/self.numParticles
         self.key = key
 
     def __iter__(self):
@@ -115,10 +115,14 @@ class Ensemble:
         return self.weights
 
     def getWeightedMean(self):
-        Z = jnp.sum(self.weights)
-        weight_times_q = self.q * self.weights[:, None]
-        top_sum = jnp.sum(weight_times_q, axis=0)
-        return ((top_sum / Z), Z)
+        #Z = jnp.sum(self.weights)
+        #weight_times_q = self.q * self.weights[:, None]
+        #top_sum = jnp.sum(weight_times_q, axis=0)
+        #return ((top_sum / Z), Z)
+        return jnp.average(self.q, axis=0, weights=self.weights, returned=True)
+    
+    def getArithmeticMean(self):
+        return jnp.average(self.q, axis=0) #jnp.sum(self.q, axis=0) / self.numParticles
 
     def particle(self, particleNum):
         """
