@@ -17,7 +17,7 @@ import jax
 from functools import partial
 import os
 
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
+#os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
 
 jax.config.update("jax_enable_x64", True)  # required or grad returns NaNs
 
