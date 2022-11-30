@@ -5,15 +5,20 @@ from jax.numpy import array, zeros, ones, empty
 from jax import jit, vmap
 
 #no further changes
-def convert_inputs(inputs):
+def convert_inputs(inputs:dict):
     nsite = inputs['nsite']
     nyear = inputs['nyear']
+    # supposed to be a matrix
     C = array(inputs['C'], dtype=dtype_long)
+    C = C.reshape((nyear, nsite))
     year = array(inputs['year'], dtype=dtype_float)
+    # assertions to ensure the proper parameters
+    assert(nsite >= 0)
+    assert(nyear >= 0)
     return { 'nsite': nsite, 'nyear': nyear, 'C': C, 'year': year }
 
 #no further changes
-def transformed_data(*, nsite, nyear, C, year):
+def transformed_data(*, C, year):
     # Transformed data
     year_squared = year * year
     year_cubed = year * year * year
