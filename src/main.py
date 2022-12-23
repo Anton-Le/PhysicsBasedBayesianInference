@@ -25,6 +25,7 @@ from numpyro.handlers import seed
 from scipy.constants import Boltzmann
 #import argument parsing module
 import argparse
+from stepSizeSelection import dtProposal
 
 # import function used to initialize the
 # distribution of positions.
@@ -135,9 +136,12 @@ if __name__ == "__main__":
     initialEstimate, initialZ = ensemble.getWeightedMean()
 
     initialMean, initialStd = getWeightedMeanStd(initialEstimate, initialZ)
+    dtSizes = dtProposal(ensemble, statModel.potential )
+    avgDt = jnp.average(dtSizes)
 
     if rank == 0:
         print(f"Mean parameters after initialisation \n", f'{initialMean} +- {initialStd}')
+        print("Mean dt: ", f'{avgDt}')
 
         print(
             f"Mean parameters after initialisation, transformed: \n",
@@ -149,7 +153,7 @@ if __name__ == "__main__":
     # HMC algorithm
     hmcObject = HMC(
         finalTime,
-        stepSize,
+        float(avgDt),
         initialPositionDensityFunc,
         potential=statModel.potential,
         gradient=statModel.grad,
