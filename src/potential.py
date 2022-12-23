@@ -16,6 +16,7 @@ from scipy.optimize import approx_fprime
 import numpyro
 import jax
 from converters import Converter
+from scipy.constants import Boltzmann as boltzmannConst
 
 
 def harmonicPotentialND(q, springConsts):
@@ -177,12 +178,13 @@ def statisticalModelGradient(
 
 
 class statisticalModel:
-    def __init__(self, model, modelArgs, modelKwargs):
+    def __init__(self, model, modelArgs, modelKwargs, temperature=1./boltzmannConst):
         self.converter = Converter(model, modelArgs, modelKwargs)
         self.modelArgs = modelArgs
         self.modelKwargs = modelKwargs
         self.model = model
         self.Jacobi = None
+        self.temperature = temperature
         # create a constraint function
         self.constraint_fn = lambda x: numpyro.infer.util.constrain_fn(
             self.model, self.modelArgs, self.modelKwargs, x
@@ -199,7 +201,7 @@ class statisticalModel:
         # convert vector to dictionary
         dictPosition = self.converter.toDict(position)
         mappedPositions = self.constraint_fn(dictPosition)
-        return -numpyro.infer.util.log_density(
+        return -1*(boltzmannConst*self.temperature)*numpyro.infer.util.log_density(
             self.model,
             self.modelArgs,
             self.modelKwargs,
@@ -233,4 +235,4 @@ class statisticalModel:
             unconstrainedGradient[key] = val
         del dictGrad
         del J
-        return -1*self.converter.toArray(unconstrainedGradient)
+        return -1*(boltzmannConst*self.temperature)*self.converter.toArray(unconstrainedGradient)

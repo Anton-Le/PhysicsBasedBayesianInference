@@ -14,7 +14,7 @@ import numpy as np
 import json
 
 # Import the model and the converter
-from CoinToss import coin_toss
+from LinearAcceleration import linear_accel
 from converters import Converter
 from potential import statisticalModel
 from ensemble import Ensemble
@@ -23,12 +23,12 @@ from HMC import HMC
 from numpyro.handlers import seed
 
 from scipy.constants import Boltzmann
-#import argument parsing module
-import argparse
 
 # import function used to initialize the
 # distribution of positions.
 from jax.scipy.stats import multivariate_normal
+#import argument parsing module
+import argparse
 
 import mpi4jax
 from mpi4py import MPI, rc
@@ -79,20 +79,18 @@ if __name__ == "__main__":
 
         # load model data and set up the statistical model
         # Load the observed outcomes and the reference biases
-        data = json.load(open("CoinToss.data.json"))
+        data = json.load(open("LinearMotion.data.json"))
         modelDataDictionary = {
-            "c1": np.array(data["c1"]),
-            "c2": np.array(data["c2"]),
+            "t": np.array(data["t"]),
+            "z": np.array(data["z"]),
+            "sigmaObs": float(data["sigmaObs"]),
         }
-        p1_reference = float(data["p1"])
-        p2_reference = float(data["p2"])
     else:
         modelDataDictionary = None
 
     modelDataDictionary = comm.bcast(modelDataDictionary, root=0)
-    model = coin_toss
-    # CAVEAT: model arguments are an empty tuple here, subject to change!
-    statModel = statisticalModel(model, (), modelDataDictionary)
+    model = linear_accel
+
 
     # Define run-time parameters (to be acquired from command line later
     parser = argparse.ArgumentParser(description="Model testing parameter parser")
@@ -102,9 +100,9 @@ if __name__ == "__main__":
     parser.add_argument("temp", metavar="T", type=float, default=1, help="Temperature in units of k_B")
     inputArguments = parser.parse_args()
     #numParticles = 2**15
-    numParticles = inputArguments.numParticles
-    numDimensions = 2  # fetch from the model!
-    #temperature = 0.1 / Boltzmann
+    numParticles = inputArguments.numParticles #//  2
+    numDimensions = 3  # fetch from the model!
+    #temperature = 1e6 / Boltzmann
     temperature = inputArguments.temp / Boltzmann
     qStd = 1
     #stepSize = 0.001
@@ -114,6 +112,9 @@ if __name__ == "__main__":
     random_seed = 1234
     rng_key = jax.random.PRNGKey(random_seed+rank)
     seed(model, rng_key)
+
+    # CAVEAT: model arguments are an empty tuple here, subject to change!
+    statModel = statisticalModel(model, (), modelDataDictionary, temperature=temperature)
 
     # Set up the initial distribution of particles
     mean = jnp.zeros(numDimensions)
@@ -129,14 +130,16 @@ if __name__ == "__main__":
     # set the weights and momenta
     ensemble.setPosition(qStd)
     ensemble.setMomentum()
+    print(ensemble.weights)
     ensemble.setWeights(statModel.potential)
 
     # compute initial mean values
-    initialEstimate, initialZ = ensemble.getWeightedMean()
+    initialEstimate = ensemble.getArithmeticMean()
 
-    initialMean, initialStd = getWeightedMeanStd(initialEstimate, initialZ)
+    initialMean, initialStd = getWeightedMeanStd(initialEstimate, 1.0)
 
     if rank == 0:
+        print(ensemble.weights)
         print(f"Mean parameters after initialisation \n", f'{initialMean} +- {initialStd}')
 
         print(
@@ -156,9 +159,11 @@ if __name__ == "__main__":
     )
 
     ensemble = hmcObject.propagate_ensemble(ensemble)
+    # outputs only for rank 0
+    if rank == 0:
+        print("Obtained samples: \n", ensemble.q)
 
     meanParameter = ensemble.getArithmeticMean()
-    print("Arithmetic mean parameter: ", meanParameter)
     finalMean, finalStd = getWeightedMeanStd(meanParameter, 1.0)
     if rank == 0:
         print(f"Mean parameters after HMC: \n", f'{finalMean} +- {finalStd}')
@@ -169,14 +174,4 @@ if __name__ == "__main__":
             f"Mean parameters after HMC, transformed: \n",
             resultVector,
         )
-        p1 = resultVector[0]
-        p2 = resultVector[1]
-        # Since this is Markov-Chain monte Carlo with MH proposal
-        # We may use simple averaging to obtain the parameters
-        print("Bias of coin 1: ", p1)
-        print("Absolute error: ", abs(p1 - p1_reference))
-        print("Relative error: ", abs(p1 - p1_reference) / p1_reference)
 
-        print("Bias of coin 2: ", p2)
-        print("Absolute error: ", abs(p2 - p2_reference))
-        print("Relative error: ", abs(p2 - p2_reference) / p2_reference)
