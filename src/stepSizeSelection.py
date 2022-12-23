@@ -77,7 +77,7 @@ def dtProposalKernel(q, p, mass, potential, T=1.0, dt0=1.0, p_accept = 0.5):
 
 
 
-def dtProposal(ensemble: Ensemble, potential, integrator="Leapfrog"):
+def dtProposal(ensemble: Ensemble, potential, dt0=1.0, integrator="Leapfrog"):
     '''
     Function to compute an average step size for a given integrator
     for the entire ensemble s.t. a move is accepted with a given
@@ -85,5 +85,5 @@ def dtProposal(ensemble: Ensemble, potential, integrator="Leapfrog"):
     '''
     #apply dt kernel for each particle
     vectorizedProposal = vmap(dtProposalKernel, in_axes=(0, 0, 0, None, None, None, None), out_axes=0 )
-    dt = vectorizedProposal(ensemble.q, ensemble.p, ensemble.mass, potential, ensemble.temperature, 1.0, 0.5)
+    dt = vectorizedProposal(ensemble.q, ensemble.p, ensemble.mass, potential, ensemble.temperature, dt0, 0.8)
     return dt
