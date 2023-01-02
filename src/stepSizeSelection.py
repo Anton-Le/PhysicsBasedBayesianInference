@@ -45,7 +45,7 @@ def dtProposalKernel(q, p, mass, potential, T=1.0, dt0=1.0, p_accept = 0.5):
     # compute the threshold
     dE_threshold = np.log(1.0/p_accept)*boltzmannConst*T;
     # initialize the integrator
-    integrator = StormerVerlet(dt, 1*dt, grad(potential) )
+    integrator = Leapfrog(dt, 1*dt, grad(potential) )
     # compute the energy at the initial phase space point
     E0 = 0.5 * jnp.dot(p, p) / mass + potential(q)
     #print("dE_max: ", dE_threshold)
@@ -53,6 +53,7 @@ def dtProposalKernel(q, p, mass, potential, T=1.0, dt0=1.0, p_accept = 0.5):
     # Decide whether to magnify or reduce the step size based on
     # the energy difference of current and new configuration.
     integrator.setStepSize(dt)
+    integrator.setNumSteps(1)
     qNew, pNew = integrator.integrate(q, p, mass)
     E1 = 0.5 * jnp.dot(pNew, pNew) / mass + potential(qNew)
     #print("E_1: ", E1.val)
@@ -73,7 +74,7 @@ def dtProposalKernel(q, p, mass, potential, T=1.0, dt0=1.0, p_accept = 0.5):
     dE, dt = jax.lax.while_loop(cond_fn, body_fn, (dE, dt))
     #print("Resultant dE: ", dE)
 
-    return dt
+    return dt/scalingFactor
 
 
 
@@ -85,5 +86,5 @@ def dtProposal(ensemble: Ensemble, potential, dt0=1.0, integrator="Leapfrog"):
     '''
     #apply dt kernel for each particle
     vectorizedProposal = vmap(dtProposalKernel, in_axes=(0, 0, 0, None, None, None, None), out_axes=0 )
-    dt = vectorizedProposal(ensemble.q, ensemble.p, ensemble.mass, potential, ensemble.temperature, dt0, 0.8)
+    dt = vectorizedProposal(ensemble.q, ensemble.p, ensemble.mass, potential, ensemble.temperature, dt0, 0.5)
     return dt

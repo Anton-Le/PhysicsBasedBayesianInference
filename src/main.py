@@ -27,6 +27,7 @@ from scipy.constants import Boltzmann
 import argparse
 from stepSizeSelection import dtProposal
 
+import time
 # import function used to initialize the
 # distribution of positions.
 from jax.scipy.stats import multivariate_normal
@@ -35,7 +36,7 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=1"
 
 if __name__ == "__main__":
     # select the platform
-    platform = "gpu"
+    platform = "cpu"
 
     numpyro.set_platform(platform)
     # Print run-time configuration infromation
@@ -69,17 +70,14 @@ if __name__ == "__main__":
     parser.add_argument("dt", metavar="dt", type=float, default=0.01, help="Step size")
     parser.add_argument("temp", metavar="T", type=float, default=1, help="Temperature in units of k_B")
     inputArguments = parser.parse_args()
-    #numParticles = 2**15
     numParticles = inputArguments.numParticles
     numDimensions = 2  # fetch from the model!
-    #temperature = 0.1 / Boltzmann
     temperature = inputArguments.temp / Boltzmann
     qStd = 1
-    #stepSize = 0.001
     stepSize = inputArguments.dt
-    #finalTime = 0.1
     finalTime = inputArguments.t_final
-    random_seed = 1234
+    #random_seed = 1234
+    random_seed = int( np.round(time.time() ) )
     rng_key = jax.random.PRNGKey(random_seed)
     seed(model, rng_key)
 
@@ -106,7 +104,7 @@ if __name__ == "__main__":
     avgDt = jnp.average(dtSizes)
     
     print(f"Mean parameters after initialisation \n", initialEstimate)
-
+    print("Averaged step size: ", avgDt)
     print(
         f"Mean parameters after initialisation, transformed: \n",
         statModel.converter.toArray(
@@ -120,12 +118,12 @@ if __name__ == "__main__":
         float(avgDt),
         initialPositionDensityFunc,
         potential=statModel.potential,
-        gradient=statModel.grad,
+        gradient=statModel.grad
     )
 
     ensemble = hmcObject.propagate_ensemble(ensemble)
 
-    meanParameter = ensemble.getArithmeticMean()
+    meanParameter, Z = ensemble.getWeightedMean()
     print("Arithmetic mean parameter: ", meanParameter)
     resultVector = statModel.converter.toArray(
                 statModel.constraint_fn(statModel.converter.toDict(meanParameter))

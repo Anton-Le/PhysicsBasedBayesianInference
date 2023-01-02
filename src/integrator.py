@@ -97,7 +97,7 @@ class Leapfrog(Integrator):
         currentAccel = - self.gradient(q) / mass
 
 
-        initial_val = (q, v, currentAccel)
+        initial_val = (q + 0.5 * self.stepSize*v , v, currentAccel)
 
         body_func = lambda i, val: _leapfrogBodyFunc(i, val, self.stepSize, self.gradient, mass)
 
@@ -107,7 +107,7 @@ class Leapfrog(Integrator):
         q, v, _ = final_val
         p = v * mass
 
-        return (q, p)
+        return (q + 0.5*self.stepSize * v, p)
 
 
 
@@ -127,18 +127,15 @@ class StormerVerlet(Integrator):
         p = jnp.copy(p)
 
         v = p / mass
+        currentAccel = - self.gradient(q) / mass
 
-        qPast = jnp.copy(q)
-        q = q + v * self.stepSize - 0.5 * self.stepSize ** 2 * self.gradient(q) / mass
-
-        initial_val = (q, qPast)
+        initial_val = (q, v, currentAccel)
         
         body_func = lambda i, val: _stormerVerletBodyFunc(i, val, self.stepSize, self.gradient, mass)
 
         final_val = jax.lax.fori_loop(0, self.numSteps, body_func, initial_val)
 
-        q, qPast = final_val
-        v = (q - qPast) / self.stepSize
+        q, v, currentAccel = final_val
         p = v * mass
         # return postion and momenta of all particles at finalTime
         return (q, p)
@@ -147,17 +144,20 @@ class StormerVerlet(Integrator):
 
 def _leapfrogBodyFunc(i, val, stepSize, gradient, mass):
     q, v, currentAccel = val
-    q = q + v * stepSize + 0.5 * currentAccel * stepSize ** 2
-    nextAccel = - gradient(q) / mass
-    v = v + 0.5 * (currentAccel + nextAccel) * stepSize
-    currentAccel = jnp.copy(nextAccel)
+    currentAccel = -gradient(q) / mass;
+    v = v + stepSize * currentAccel
+    q = q + stepSize * v
+    #q = q + v * stepSize + 0.5 * currentAccel * stepSize ** 2
+    #nextAccel = - gradient(q) / mass
+    #v = v + 0.5 * (currentAccel + nextAccel) * stepSize
+    #currentAccel = jnp.copy(nextAccel)
     val = (q, v, currentAccel)
     return val
 
 def _stormerVerletBodyFunc(i, val, stepSize, gradient, mass):
-    q, qPast = val
-    temp = jnp.copy(q)
-    q = 2 * q - qPast - stepSize ** 2 * gradient(q) / mass
-    qPast = jnp.copy(temp)
-    val = (q, qPast)
+    q, v, currentAccel = val
+    q = q + stepSize *  v + 0.5*stepSize**2 *currentAccel 
+    newAccel = -gradient(q) / mass
+    v = v + 0.5* stepSize* ( currentAccel + newAccel )
+    val = (q, v, newAccel)
     return val
