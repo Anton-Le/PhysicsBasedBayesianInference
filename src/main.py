@@ -71,7 +71,7 @@ if __name__ == "__main__":
     inputArguments = parser.parse_args()
     #numParticles = 2**15
     numParticles = inputArguments.numParticles
-    numDimensions = 2  # fetch from the model!
+    numDimensions = statModel.converter.vectorSize  # fetch from the model!
     #temperature = 0.1 / Boltzmann
     temperature = inputArguments.temp / Boltzmann
     qStd = 1
