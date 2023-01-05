@@ -19,11 +19,12 @@ from jax.scipy.stats import multivariate_normal
 from ensemble import Ensemble
 import matplotlib as mpl
 import jax
-from HMC import HMC
+from HMC_Python import HMC_reference
 
 
 jax.config.update("jax_enable_x64", True)
-
+#seed the MT1337 generator
+np.random.seed(1234)
 
 def test():
     # ensemble setup
@@ -40,19 +41,19 @@ def test():
     mean = jnp.ones(numDimensions) * 5
     mean2 = jnp.ones(numDimensions) * -3
     cov = jnp.array([[4, -3], [-3, 4]])  # random covariance matrix
-    densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov) +  3*multivariate_normal.pdf(q, mean2, cov=cov)
-    potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov) - 3*multivariate_normal.logpdf(q, mean2, cov=cov)
+    densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov) + multivariate_normal.pdf(q, mean2, cov=cov)
+    potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov) -multivariate_normal.logpdf(q, mean2, cov=cov)
+
 
     # HMC setup
-    simulTime = 1
-    stepSize = 0.001
+    simulTime = 2
+    stepSize = 0.01
 
-    hmcObject = HMC(
+    hmcObject = HMC_reference(
         simulTime,
         stepSize,
         densityFunc,
-        potential=potentialFunc,
-        method="Stormer-Verlet",
+        potential=potentialFunc
     )
 
     # set positions
@@ -92,8 +93,8 @@ def test():
 
     # contour plot
 
-    x = np.linspace(mean[0] - 10, mean[0] + 10)
-    y = np.linspace(mean[1] - 10, mean[1] + 10)
+    x = np.linspace(mean[0] - 7, mean[0] + 7)
+    y = np.linspace(mean[1] - 7, mean[1] + 7)
     x_mesh, y_mesh = np.meshgrid(x, y)
     q = np.dstack((x_mesh, y_mesh))
     z = densityFunc(q)

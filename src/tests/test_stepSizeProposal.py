@@ -146,6 +146,9 @@ def test_stepSizeProposal_T_convergence():
     # ealuate differences
     stepSizeDifference = np.array( [a - b for (a,b) in zip(avgTheoStepSizes, avgNumStepSizes )]  )
     relErr = abs(stepSizeDifference) / avgTheoStepSizes
+    print("Theoretical averages: ", avgTheoStepSizes)
+    print("Numeric averages: ", avgNumStepSizes)
+    print(relErr)
     assert np.all(relErr[:-1] > relErr[1:]) , "Relative error does not decrease with temperature increase"
     print("Temperature convergence PASSED!")
 
