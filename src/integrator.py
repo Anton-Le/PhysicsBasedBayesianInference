@@ -61,19 +61,20 @@ class Integrator:
         raise NotImplementedError('Integrator superclass doesn\'t specify \
             integration method')
 
+    def setStepSize(self, dt: float):
+        self.stepSize = dt
+
+    def setNumSteps(self, N: int):
+        self.numSteps = N
+
+
 
     # @partial(jit, static_argnums=0)
     @partial(vmap, in_axes=(None, 0, 0, 0))
     def pintegrate(self, q, p, mass):
         return self.integrate(q, p, mass)
 
-    # @partial(jit, static_argnums=0)
-    # def pintegrate(self, q, p, mass):
-    #     q_p_mass = (q, p, mass)
 
-    #     f = lambda q_p_mass: self.integrate(*q_p_mass)
-    #     q, p = jax.lax.map(f, q_p_mass)
-    #     return (q, p)
 
 
 class Leapfrog(Integrator):
