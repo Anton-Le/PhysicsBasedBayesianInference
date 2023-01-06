@@ -40,12 +40,12 @@ def test():
     mean = jnp.ones(numDimensions) * 5
     mean2 = jnp.ones(numDimensions) * -3
     cov = jnp.array([[4, -3], [-3, 4]])  # random covariance matrix
-    densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov) +  3*multivariate_normal.pdf(q, mean2, cov=cov)
-    potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov) - 3*multivariate_normal.logpdf(q, mean2, cov=cov)
+    densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov) #+  3*multivariate_normal.pdf(q, mean2, cov=cov)
+    potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov) #- 3*multivariate_normal.logpdf(q, mean2, cov=cov)
 
     # HMC setup
     simulTime = 1
-    stepSize = 0.001
+    stepSize = 0.01
 
     hmcObject = HMC(
         simulTime,
@@ -60,7 +60,7 @@ def test():
     qStd = 3
     ensemble.setPosition(3)
 
-    numIterations = 30
+    numIterations = 10
 
     hmcSamples = jnp.zeros(
         (

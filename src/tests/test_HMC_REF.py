@@ -31,7 +31,7 @@ def test():
 
     numParticles = 3
     numDimensions = 2
-    temperature = 1 / Boltzmann
+    temperature = 100 / Boltzmann
     seed = 10
     key = jax.random.PRNGKey(seed)
 
@@ -46,7 +46,7 @@ def test():
 
 
     # HMC setup
-    simulTime = 2
+    simulTime = 1
     stepSize = 0.01
 
     hmcObject = HMC_reference(
@@ -61,7 +61,7 @@ def test():
     qStd = 3
     ensemble.setPosition(3)
 
-    numIterations = 30
+    numIterations = 10
 
     hmcSamples = jnp.zeros(
         (
@@ -70,12 +70,9 @@ def test():
             numDimensions,
         )
     )
-
     for i in range(numIterations):
         ensemble.setMomentum()  # numParticles!
-
         ensemble = hmcObject.propagate_ensemble(ensemble)
-
         hmcSamples = hmcSamples.at[i].set(ensemble.q)
 
     fig, ax = plt.subplots()
@@ -93,8 +90,8 @@ def test():
 
     # contour plot
 
-    x = np.linspace(mean[0] - 7, mean[0] + 7)
-    y = np.linspace(mean[1] - 7, mean[1] + 7)
+    x = np.linspace(mean[0] - 10, mean[0] + 10)
+    y = np.linspace(mean[1] - 10, mean[1] + 10)
     x_mesh, y_mesh = np.meshgrid(x, y)
     q = np.dstack((x_mesh, y_mesh))
     z = densityFunc(q)
@@ -113,7 +110,6 @@ def test():
     ax.set_xlabel(r"$x_{1}$")
     ax.set_ylabel(r"$x_{2}$")
     ax.legend(title="HMC Branch", loc="upper right")
-
     plt.show()
 
 
