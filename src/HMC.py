@@ -195,7 +195,7 @@ class HMC:
 
         q, p = jnp.where(
             jax.random.uniform(key) < acceptanceProb,
-            jnp.array([proposedQ, -proposedP]),
+            jnp.array([proposedQ, proposedP]),
             jnp.array([q, p]),
         )
 

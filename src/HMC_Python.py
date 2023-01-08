@@ -183,7 +183,7 @@ class HMC_reference:
     def propagate_ensemble(self, ensemble):
         q, p, mass, temperature, key = ensemble
         numParticles, numDimensions = q.shape
-        print("[HMC] Ensemble propagation starting positions:\n", q)
+        #print("[HMC] Ensemble propagation starting positions:\n", q)
         # copy and convert to NumPy arrays
         q, p, mass = (
             np.array(q),
@@ -201,7 +201,7 @@ class HMC_reference:
 
         # make new ensemble object with updated attributes and copy NumPy
         # arrays into JAX NumPy arrays
-        print("[HMC] Ensemble propagation final positions:\n", q)
+        #print("[HMC] Ensemble propagation final positions:\n", q)
         ensemble = Ensemble(numDimensions, numParticles, temperature, key)
         ensemble.q = jnp.array(q)
         ensemble.p = jnp.array(p)
