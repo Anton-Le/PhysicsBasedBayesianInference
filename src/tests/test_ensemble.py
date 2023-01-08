@@ -39,7 +39,7 @@ def test_init():
     q_expected = np.zeros(numDimensions)
     p_expected = np.zeros(numDimensions)
     m_expected = 1.0  # 0.0
-    w_expected = 0.0
+    w_expected = 1.0
 
     q1, p1, m1, w1 = ensemble.particle(10)
 

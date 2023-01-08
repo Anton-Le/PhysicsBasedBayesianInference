@@ -80,14 +80,14 @@ class ReferenceLeapfrog(ReferenceIntegrator):
         p = np.copy(p)
 
         v = p / mass
-
+        # assuming gradient will yield a jax array, convert it to NumPy
         currentAccel = - np.array(self.gradient(q)) / mass
 
 
         q += 0.5 * self.stepSize*v
         for step in range(self.numSteps):
             # loop body
-            currentAccel = -self.gradient(q) / mass;
+            currentAccel = -np.array(self.gradient(q)) / mass;
             v = v + self.stepSize * currentAccel
             q = q + self.stepSize * v
             
@@ -171,8 +171,9 @@ class HMC_reference:
         return -jnp.log(self.density(q))
 
     def getWeight(self, q, p, mass, temperature):
-        H = 0.5 * jnp.dot(p, p) / mass + self.potential(q)
-        return jnp.exp(-H / (boltzmannConst * temperature))
+        #ensure that we only work with real numbers
+        H = 0.5 * np.dot(p, p) / mass + float(self.potential(q))
+        return np.exp(-H / (boltzmannConst * temperature))
 
     def print_information(self):
         print("integrator: ", self.integrator)
@@ -182,27 +183,29 @@ class HMC_reference:
     def propagate_ensemble(self, ensemble):
         q, p, mass, temperature, key = ensemble
         numParticles, numDimensions = q.shape
-
+        print("[HMC] Ensemble propagation starting positions:\n", q)
+        # copy and convert to NumPy arrays
         q, p, mass = (
-            jnp.copy(q),
-            jnp.copy(p),
-            jnp.copy(mass),
+            np.array(q),
+            np.array(p),
+            np.array(mass),
         )  # don't want these to be modified
-        weights = jnp.copy(mass)
+        weights = np.array(mass)
         # iterate over the particles
         for i in range(numParticles):
             qi, pi, mi = q[i], p[i], mass[i]
             qi, pi, wi = self.propagate(temperature, qi, pi, mi, 1)
-            q = q.at[i].set(qi)
-            p = p.at[i].set(pi)
-            weights = weights.at[i].set(wi)
+            q[i] = np.copy(qi)
+            p[i] = np.copy(pi)
+            weights[i] = np.copy(wi)
 
-        # make new ensemble object with updated attributes
-
+        # make new ensemble object with updated attributes and copy NumPy
+        # arrays into JAX NumPy arrays
+        print("[HMC] Ensemble propagation final positions:\n", q)
         ensemble = Ensemble(numDimensions, numParticles, temperature, key)
-        ensemble.q = q
-        ensemble.p = p
-        ensemble.weights = weights
+        ensemble.q = jnp.array(q)
+        ensemble.p = jnp.array(p)
+        ensemble.weights = jnp.array(weights)
 
         return ensemble
 
@@ -216,12 +219,12 @@ class HMC_reference:
         E1 = self.hamiltonian(proposedQ, proposedP, mass)
         alpha = np.exp( - (E1 - E0) /(boltzmannConst*temperature) )
 
-        acceptanceProb = jnp.minimum(alpha, 1.0)
+        acceptanceProb = np.minimum(alpha, 1.0)
         u = np.random.uniform(0,1)
         #check if the move is accepted
-        if u <= acceptanceProb:
+        if u < acceptanceProb:
                 q = proposedQ
-                p = -1*proposedP
+                p = proposedP
 
         weight = self.getWeight(q, p, mass, temperature)
 
