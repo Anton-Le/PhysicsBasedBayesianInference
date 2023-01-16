@@ -10,7 +10,8 @@ import numpy as np
 import jax.numpy as jnp
 from jax import grad, vmap, jit
 from scipy.stats import norm
-from scipy.constants import Boltzmann as boltzmannConst
+#from scipy.constants import Boltzmann as boltzmannConst
+boltzmannConst = 1
 from ensemble import Ensemble
 from integrator import Leapfrog, StormerVerlet
 import jax
@@ -183,7 +184,8 @@ class HMC_reference:
     def propagate_ensemble(self, ensemble):
         q, p, mass, temperature, key = ensemble
         numParticles, numDimensions = q.shape
-        #print("[HMC] Ensemble propagation starting positions:\n", q)
+        print("[HMC] Ensemble propagation starting positions:\n", q)
+        print("[HMC] Ensemble propagation starting momenta:\n", p)
         # copy and convert to NumPy arrays
         q, p, mass = (
             np.array(q),
@@ -201,7 +203,8 @@ class HMC_reference:
 
         # make new ensemble object with updated attributes and copy NumPy
         # arrays into JAX NumPy arrays
-        #print("[HMC] Ensemble propagation final positions:\n", q)
+        print("[HMC] Ensemble propagation final positions:\n", q)
+        print("[HMC] Ensemble propagation final momenta:\n", p)
         ensemble = Ensemble(numDimensions, numParticles, temperature, key)
         ensemble.q = jnp.array(q)
         ensemble.p = jnp.array(p)
@@ -220,11 +223,14 @@ class HMC_reference:
         alpha = np.exp( - (E1 - E0) /(boltzmannConst*temperature) )
 
         acceptanceProb = np.minimum(alpha, 1.0)
+        print(acceptanceProb)
         u = np.random.uniform(0,1)
         #check if the move is accepted
         if u < acceptanceProb:
                 q = proposedQ
                 p = proposedP
+#        else:
+#            p *= -1;
 
         weight = self.getWeight(q, p, mass, temperature)
 

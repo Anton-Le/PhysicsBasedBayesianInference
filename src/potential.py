@@ -16,8 +16,8 @@ from scipy.optimize import approx_fprime
 import numpyro
 import jax
 from converters import Converter
-from scipy.constants import Boltzmann as boltzmannConst
-
+#from scipy.constants import Boltzmann as boltzmannConst
+boltzmannConst = 1
 
 def harmonicPotentialND(q, springConsts):
     """

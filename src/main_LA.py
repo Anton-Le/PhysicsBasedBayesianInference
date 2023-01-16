@@ -22,8 +22,8 @@ from HMC import HMC
 
 from numpyro.handlers import seed
 
-from scipy.constants import Boltzmann
-
+#from scipy.constants import Boltzmann
+Boltzmann = 1
 # import function used to initialize the
 # distribution of positions.
 from jax.scipy.stats import multivariate_normal
