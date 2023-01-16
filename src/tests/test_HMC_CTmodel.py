@@ -13,6 +13,10 @@ sys.path.append("../")
 
 import numpy as np
 import jax.numpy as jnp
+import jax.numpy as jnp
+import numpy as np
+import json
+
 from matplotlib import pyplot as plt
 #from scipy.constants import Boltzmann
 Boltzmann = 1
@@ -22,8 +26,11 @@ import matplotlib as mpl
 from matplotlib.colors import LogNorm
 import jax
 from HMC_Python import HMC_reference
-from potential import harmonicPotentialND
 from HMC import HMC
+
+from CoinToss import coin_toss
+from converters import Converter
+from potential import harmonicPotentialND, statisticalModel
 
 jax.config.update("jax_enable_x64", True)
 #seed the MT1337 generator
@@ -37,11 +44,27 @@ def test():
 
     numParticles = 6
     numDimensions = 2
-    temperature = 10 / Boltzmann
+    temperature = 100 / Boltzmann
     seed = 10
     key = jax.random.PRNGKey(seed)
 
     ensemble = Ensemble(numDimensions, numParticles, temperature, key)
+
+    # load model data and set up the statistical model
+    # Load the observed outcomes and the reference biases
+    data = json.load(open("../CoinToss.data.json"))
+    modelDataDictionary = {
+        "c1": np.array(data["c1"]),
+        "c2": np.array(data["c2"]),
+    }
+    p1_reference = float(data["p1"])
+    p2_reference = float(data["p2"])
+
+    model = coin_toss
+    # CAVEAT: model arguments are an empty tuple here, subject to change!
+    statModel = statisticalModel(model, (), modelDataDictionary)
+
+
 
     # PDF Setup
     mean = jnp.ones(numDimensions) * 2
@@ -50,9 +73,8 @@ def test():
     densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov) + multivariate_normal.pdf(q, mean2, cov=cov)
     springConsts = np.arange(1, 1+numDimensions)**2
     print("k = ", springConsts)
-    potentialFunc = lambda q: harmonicPotentialND(q - mean, springConsts) * harmonicPotentialND(q - mean2, springConsts)
-    #potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov) -multivariate_normal.logpdf(q, mean2, cov=cov)
-    analyticGradient = lambda q: harmonicForce(q, mean, springConsts) + harmonicForce(q, mean2, springConsts)
+    potentialFunc = statModel.potential 
+
     # HMC setup
     simulTime = 1.0
     numIterations = 30
@@ -64,14 +86,16 @@ def test():
         stepSize * numStepsPerIteration,
         stepSize,
         densityFunc,
-        potential=potentialFunc
+        potential=statModel.potential,
+        gradient=statModel.grad
     )
 
     hmcJAX = HMC(
         stepSize * numStepsPerIteration,
         stepSize,
         densityFunc,
-        potential=potentialFunc
+        potential=statModel.potential,
+        gradient=statModel.grad
     )
 
 
@@ -96,6 +120,7 @@ def test():
             numDimensions,
         )
     )
+    hmcWeightsJAX = jnp.zeros( (numIterations, numParticles) )
 
     for i in range(numIterations):
         print("Step block ", i)
@@ -104,7 +129,7 @@ def test():
         #copy particle data out
         hmcSamples = hmcSamples.at[i].set(ensemble.q)
         hmcSamplesJAX = hmcSamplesJAX.at[i].set(jaxEnsemble.q)
-
+        hmcWeightsJAX = hmcWeightsJAX.at[i].set( jaxEnsemble.weights )
 
     fig, ax = plt.subplots()
     pathCmap = plt.cm.get_cmap("Set1")
@@ -122,17 +147,17 @@ def test():
         ax.plot(
             hmcSamplesJAX[:, particleNum, 0],
             hmcSamplesJAX[:, particleNum, 1],
-            marker="o",
             color=pathCmap(particleNum),
-            #label="JAX: {:d}".format(particleNum + 1),
+            marker="o",
+            label="JAX: {:d}".format(particleNum + 1),
             lw=0.2,
             ls=":",
             markersize=2,
         )
     # contour plot
 
-    x = np.linspace(-7.5, 7.5, 100)
-    y = np.linspace(-5, 5, 100)
+    x = np.linspace(-10, 15, 100)
+    y = np.linspace(-10, 15, 100)
     x_mesh, y_mesh = np.meshgrid(x, y)
     q = np.dstack((x_mesh, y_mesh))
     z = np.zeros_like(x_mesh)
@@ -148,13 +173,13 @@ def test():
         y_mesh,
         z,
         cmap=cmap,
-        levels=20,
-        norm=norm
+        levels=40
     )
+    fig.colorbar(contour)
 
     ax.set_xlabel(r"$x_{1}$")
     ax.set_ylabel(r"$x_{2}$")
-    ax.legend(title="Particle", loc="upper right")
+    ax.legend(title="HMC Branch", loc="upper right")
     plt.show()
 
 
