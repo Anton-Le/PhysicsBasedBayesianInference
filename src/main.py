@@ -34,9 +34,45 @@ from jax.scipy.stats import multivariate_normal
 
 os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=1"
 
+#temporary location for the ESS function
+
+def effectiveSampleSize(weights: jnp.array, Z: float):
+    return 1.0/ jnp.sum( (weights/Z) **2)
+
+def resampleEnsemble(ensemble, Z: float, N_effective: int):
+    #compute the CDF of the ensemble weights
+    cdf = jnp.cumsum( ensemble.weights / Z )
+    #prepare the arrays for new particle positions and momenta
+    q = jnp.zeros( ensemble.q.shape )
+    p = jnp.zeros( ensemble.p.shape )
+    # sort in descending order of magnitude of weights
+    # the pythonic approach has the potential to lock-up due to a lack of comparison
+    #sortedParticles = sorted(zip(ensemble.weights, zip(ensemble.q, ensemble.p) ), reverse=True )
+    particleIndices = jnp.array(np.arange(numParticles))
+    sortedParticleIndices = jax.lax.sort_key_val(ensemble.weights, particleIndices, 0)[1]
+    # copy into the new arrays - problematic since zip has broken contiguous arrays up
+    for pId in range(N_effective):
+        #q = q.at[pId].set( sortedParticles[pId][1][0] ) #element 1 of the (w, (q,p) ) tuple and then element 0 of the (q,p) tuple
+        #p = p.at[pId].set( sortedParticles[pId][1][1] )
+        q = q.at[pId].set( ensemble.q[sortedParticleIndices[pId]] )
+        p = p.at[pId].set( ensemble.p[sortedParticleIndices[pId]] )
+    #iterate over the remaining slots and draw particles from the original ensemble
+    for pId in range( ensemble.numParticles - N_effective ):
+        u = np.random.uniform(0,1)
+        srcParticleIdx = jnp.argmin( cdf < u)
+        q = q.at[N_effective + pId].set( ensemble.q[ srcParticleIdx] )
+        p = p.at[N_effective + pId].set( ensemble.p[ srcParticleIdx] )
+    #set the ensemble data
+    ensemble.q = q
+    ensemble.p = p
+    ensemble.weights = jnp.ones( ensemble.numParticles ) / ensemble.numParticles
+    return ensemble;
+
+
+
 if __name__ == "__main__":
     # select the platform
-    platform = "cpu"
+    platform = "gpu"
 
     numpyro.set_platform(platform)
     # Print run-time configuration infromation
@@ -69,6 +105,8 @@ if __name__ == "__main__":
     parser.add_argument("t_final", metavar="t", type=float, default=0.1, help="Total integration time")
     parser.add_argument("dt", metavar="dt", type=float, default=0.01, help="Step size")
     parser.add_argument("temp", metavar="T", type=float, default=1, help="Temperature in units of k_B")
+    parser.add_argument("degenFraction", metavar="dFrac", type=float, default=0.5, help="Fraction of particles below which to resample.")
+    parser.add_argument("thermSteps", metavar="tSteps", type=int, default=1, help="Number of thermalization steps.")
     inputArguments = parser.parse_args()
     numParticles = inputArguments.numParticles
     numDimensions = 2  # fetch from the model!
@@ -76,6 +114,12 @@ if __name__ == "__main__":
     qStd = 1
     stepSize = inputArguments.dt
     finalTime = inputArguments.t_final
+
+    tSteps = inputArguments.thermSteps
+    particleFraction = inputArguments.degenFraction
+
+    #Define the degeneracy threshold of particles
+    N_threshold = int( np.rint(numParticles * particleFraction) )
     #random_seed = 1234
     random_seed = int( np.round(time.time() ) )
     rng_key = jax.random.PRNGKey(random_seed)
@@ -115,22 +159,48 @@ if __name__ == "__main__":
     # HMC algorithm
     hmcObject = HMC(
         finalTime,
-        float(avgDt),
+        stepSize,
         initialPositionDensityFunc,
         potential=statModel.potential,
         gradient=statModel.grad
     )
+    # SMC loop
+    for smcStep in range(tSteps):
+        print("[SMC loop] step ", smcStep)
+        #propagate the ensemble using HMC
+        ensemble = hmcObject.propagate_ensemble(ensemble)
+        # compute mean and partition function
+        meanParameter, Z = ensemble.getWeightedMean()
+        print("Partition function: ", Z[0])
+        # SMC, determine effective sample size
+        N_effective = effectiveSampleSize( ensemble.weights, Z[0] )
+        print("Effective sample size: ", N_effective)
+        # Print the HMC estimate
+        print("Arithmetic mean parameter: ", meanParameter)
+        resultVector = statModel.converter.toArray(
+                statModel.constraint_fn(statModel.converter.toDict(meanParameter))
+            )
+        print(
+                f"Mean parameters after HMC, transformed: \n",
+                resultVector,
+        )
+        # Threshold, resample, perform next step SMC sampling
+        if N_effective <= N_threshold:
+            print("Resampling")
+            resampleEnsemble(ensemble, Z[0], int(np.rint(N_effective)) )
+        #SMC loop END
 
-    ensemble = hmcObject.propagate_ensemble(ensemble)
-
+    #final approximation
     meanParameter, Z = ensemble.getWeightedMean()
+    print("Effective sample size: ", N_effective)
+    # Print the HMC estimate
     print("Arithmetic mean parameter: ", meanParameter)
     resultVector = statModel.converter.toArray(
                 statModel.constraint_fn(statModel.converter.toDict(meanParameter))
-            )
+    )
     print(
-            f"Mean parameters after HMC, transformed: \n",
-            resultVector,
+                f"Mean parameters after HMC, transformed: \n",
+                resultVector,
     )
     p1 = resultVector[0]
     p2 = resultVector[1]
