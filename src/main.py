@@ -37,11 +37,11 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=1"
 #temporary location for the ESS function
 
 def effectiveSampleSize(weights: jnp.array, Z: float):
-    return 1.0/ jnp.sum( (weights/Z) **2)
+    return 1.0/ jnp.sum( ( jnp.exp(weights) /Z ) **2)
 
 def resampleEnsemble(ensemble, Z: float, N_effective: int):
     #compute the CDF of the ensemble weights
-    cdf = jnp.cumsum( ensemble.weights / Z )
+    cdf = jnp.cumsum( jnp.exp(ensemble.weights) / Z )
     #prepare the arrays for new particle positions and momenta
     q = jnp.zeros( ensemble.q.shape )
     p = jnp.zeros( ensemble.p.shape )
@@ -49,14 +49,15 @@ def resampleEnsemble(ensemble, Z: float, N_effective: int):
     # the pythonic approach has the potential to lock-up due to a lack of comparison
     #sortedParticles = sorted(zip(ensemble.weights, zip(ensemble.q, ensemble.p) ), reverse=True )
     particleIndices = jnp.array(np.arange(numParticles))
-    sortedParticleIndices = jax.lax.sort_key_val(ensemble.weights, particleIndices, 0)[1]
+    sortedParticleIndices = jax.lax.sort_key_val( jnp.exp(ensemble.weights) / Z, particleIndices, 0)[1]
     # copy into the new arrays - problematic since zip has broken contiguous arrays up
     for pId in range(N_effective):
         #q = q.at[pId].set( sortedParticles[pId][1][0] ) #element 1 of the (w, (q,p) ) tuple and then element 0 of the (q,p) tuple
         #p = p.at[pId].set( sortedParticles[pId][1][1] )
         q = q.at[pId].set( ensemble.q[sortedParticleIndices[pId]] )
         p = p.at[pId].set( ensemble.p[sortedParticleIndices[pId]] )
-    #iterate over the remaining slots and draw particles from the original ensemble
+    # re-normalise the new weights
+    #iterate over the remaining slots and draw particles from the ~original~ reduced ensemble
     for pId in range( ensemble.numParticles - N_effective ):
         u = np.random.uniform(0,1)
         srcParticleIdx = jnp.argmin( cdf < u)
@@ -65,7 +66,7 @@ def resampleEnsemble(ensemble, Z: float, N_effective: int):
     #set the ensemble data
     ensemble.q = q
     ensemble.p = p
-    ensemble.weights = jnp.ones( ensemble.numParticles ) / ensemble.numParticles
+    ensemble.weights = -jnp.ones( ensemble.numParticles ) * jnp.log( ensemble.numParticles )
     return ensemble;
 
 
@@ -165,6 +166,7 @@ if __name__ == "__main__":
         gradient=statModel.grad
     )
     # SMC loop
+    jax.profiler.start_trace("/mnt/TGT/JAXProfiles")
     for smcStep in range(tSteps):
         print("[SMC loop] step ", smcStep)
         #propagate the ensemble using HMC
@@ -185,11 +187,12 @@ if __name__ == "__main__":
                 resultVector,
         )
         # Threshold, resample, perform next step SMC sampling
-        if N_effective <= N_threshold:
-            print("Resampling")
-            resampleEnsemble(ensemble, Z[0], int(np.rint(N_effective)) )
+        #if N_effective <= N_threshold:
+                #print("Resampling")
+            #resampleEnsemble(ensemble, Z[0], int(np.rint(N_effective)) )
         #SMC loop END
-
+    resultVector.block_until_ready()
+    jax.profiler.stop_trace()
     #final approximation
     meanParameter, Z = ensemble.getWeightedMean()
     print("Effective sample size: ", N_effective)
@@ -207,10 +210,12 @@ if __name__ == "__main__":
     # Since this is Markov-Chain monte Carlo with MH proposal
     # We may use simple averaging to obtain the parameters
     print("Bias of coin 1: ", p1)
+    print("Analytic bias of coin 1: ", p1_reference)
     print("Absolute error: ", abs(p1 - p1_reference))
     print("Relative error: ", abs(p1 - p1_reference) / p1_reference)
 
     print("Bias of coin 2: ", p2)
+    print("Analytic bias of coin 2: ", p2_reference)
     print("Absolute error: ", abs(p2 - p2_reference))
     print("Relative error: ", abs(p2 - p2_reference) / p2_reference)
     print("Obtained samples: \n", ensemble.q)

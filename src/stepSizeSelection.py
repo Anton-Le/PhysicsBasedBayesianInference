@@ -86,5 +86,5 @@ def dtProposal(ensemble: Ensemble, potential, dt0=1.0, integrator="Leapfrog"):
     '''
     #apply dt kernel for each particle
     vectorizedProposal = vmap(dtProposalKernel, in_axes=(0, 0, 0, None, None, None, None), out_axes=0 )
-    dt = vectorizedProposal(ensemble.q, ensemble.p, ensemble.mass, potential, ensemble.temperature, dt0, 0.5)
+    dt = vectorizedProposal(ensemble.q, ensemble.p, ensemble.mass, potential, ensemble.temperature, dt0, 0.8)
     return dt

@@ -18,7 +18,6 @@ import jax
 from converters import Converter
 from scipy.constants import Boltzmann as boltzmannConst
 
-
 def harmonicPotentialND(q, springConsts):
     """
     @description:

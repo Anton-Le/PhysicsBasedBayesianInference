@@ -16,7 +16,6 @@ from integrator import Leapfrog, StormerVerlet
 import jax
 from functools import partial
 import os
-
 #os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
 
 jax.config.update("jax_enable_x64", True)  # required or grad returns NaNs
@@ -137,7 +136,7 @@ class HMC:
 
     def getWeight(self, q, p, mass, temperature):
         H = 0.5 * jnp.dot(p, p) / mass + self.potential(q)
-        return jnp.exp(-H / (boltzmannConst * temperature))
+        return -H / (boltzmannConst * temperature)#)
 
     def print_information(self):
         print("integrator: ", self.integrator)

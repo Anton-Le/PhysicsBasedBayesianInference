@@ -16,7 +16,6 @@ from scipy.constants import k as boltzmannConst
 from potential import nBodyPotential
 from functools import partial
 
-
 jax.config.update(
     "jax_enable_x64", True
 )  # required or mass (1e-27) * Boltzmann is too small -> 0
@@ -119,10 +118,10 @@ class Ensemble:
         #weight_times_q = self.q * self.weights[:, None]
         #top_sum = jnp.sum(weight_times_q, axis=0)
         #return ((top_sum / Z), Z)
-        return jnp.average(self.q, axis=0, weights=self.weights, returned=True)
+        return jnp.average(self.q, axis=0, weights=jnp.exp(self.weights), returned=True)
     
     def getArithmeticMean(self):
-        return jnp.average(self.q, axis=0) #jnp.sum(self.q, axis=0) / self.numParticles
+        return jnp.average(self.q, axis=0) 
 
     def particle(self, particleNum):
         """
@@ -148,4 +147,4 @@ class Ensemble:
     @partial(vmap, in_axes=(None, None, 0, 0, 0))
     def _setWeights(self, potential, q, p, mass):
         H = 0.5 * jnp.dot(p, p) / mass + potential(q)
-        return jnp.exp(-H / (boltzmannConst * self.temperature))
+        return -H / (boltzmannConst * self.temperature)
