@@ -130,9 +130,11 @@ class HMC:
             oldP (ndarray)
             mass (float)
         """
-        oldH = 0.5 * jnp.dot(oldP, oldP) / mass + self.potential(oldQ)
-        newH = 0.5 * jnp.dot(newP, newP) / mass + self.potential(newQ)
-        return jnp.exp((oldH - newH) / (boltzmannConst * temperature))
+        #oldH = 0.5 * jnp.dot(oldP, oldP) / mass + self.potential(oldQ)
+        old = self.getWeight(oldQ, oldP, mass, temperature)
+        new = self.getWeight(newQ, newP, mass, temperature)
+        #newH = 0.5 * jnp.dot(newP, newP) / mass + self.potential(newQ)
+        return jnp.exp( -(old - new) ) #(oldH - newH) / (boltzmannConst * temperature))
 
     def getWeight(self, q, p, mass, temperature):
         H = 0.5 * jnp.dot(p, p) / mass + self.potential(q)
@@ -145,28 +147,24 @@ class HMC:
 
     def propagate_ensemble(self, ensemble):
         q, p, mass, temperature, key = ensemble
-        numParticles, numDimensions = q.shape
+        numParticles, _ = q.shape
 
         key, *keys = jax.random.split(
             key, numParticles + 1
         )  # key is returned to be used again
         keys = jnp.array(keys)
-        ensemble.key = key  # update ensemble key
 
-        q, p, mass = (
-            jnp.copy(q),
-            jnp.copy(p),
-            jnp.copy(mass),
-        )  # don't want these to be modified
+        #q, p, mass = jnp.copy(q), jnp.copy(p), jnp.copy(mass)
 
         q, p, weights = self.propgate(temperature, q, p, mass, keys)
 
         # make new ensemble object with updated attributes
 
-        ensemble = Ensemble(numDimensions, numParticles, temperature, key)
-        ensemble.q = q
-        ensemble.p = p
-        ensemble.weights = weights
+        #ensemble = Ensemble(numDimensions, numParticles, temperature, key)
+        ensemble.q = jnp.copy(q)
+        ensemble.p = jnp.copy(p)
+        ensemble.weights = jnp.copy(weights)
+        ensemble.key = key
 
         return ensemble
 
@@ -191,7 +189,6 @@ class HMC:
             )
 
         acceptanceProb = jnp.minimum(weightRatio, 1)
-
         q, p = jnp.where(
             jax.random.uniform(key) < acceptanceProb,
             jnp.array([proposedQ, proposedP]),

@@ -89,9 +89,6 @@ class Leapfrog(Integrator):
             p (ndarray) : Initial momentum
             mass (float) :
         """
-        q = jnp.copy(q)
-        p = jnp.copy(p)
-
         v = p / mass     
 
         currentAccel = - self.gradient(q) / mass

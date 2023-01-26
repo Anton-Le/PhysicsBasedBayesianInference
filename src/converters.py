@@ -55,7 +55,7 @@ class Converter:
         for paramName in self.parametersAndShapes.keys():
             paramData[paramName] = parameterVector[
                 arrayIdx : arrayIdx + self.parametersAndShapes[paramName]
-            ]  # .copy()
+            ] 
             arrayIdx += self.parametersAndShapes[paramName]
         return paramData
 
@@ -64,7 +64,6 @@ class Converter:
         Function that will convert a dictionary of parameters
         back into an array
         """
-        # vec = np.zeros( self.vectorSize )
         vec = jnp.zeros(self.vectorSize)
 
         arrayIdx = 0
@@ -77,4 +76,4 @@ class Converter:
                 )  # ravel is needed to avoid error
             )
             arrayIdx += self.parametersAndShapes[paramName]
-        return jnp.array(vec)
+        return vec 
