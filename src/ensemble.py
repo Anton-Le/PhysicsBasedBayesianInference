@@ -48,6 +48,7 @@ class Ensemble:
         self.q = jnp.zeros((numParticles, numDimensions))
         self.p = jnp.zeros((numParticles, numDimensions))
         self.mass = jnp.ones(numParticles)
+        self.initWeights = jnp.ones(numParticles) * (-jnp.log(numParticles))
         self.weights = jnp.ones(numParticles) #* 1.0/self.numParticles
         self.key = key
 
@@ -142,6 +143,7 @@ class Ensemble:
             self.p[particleNum],
             self.mass[particleNum],
             self.weights[particleNum],
+            self.initWeights[particleNum],
         )
 
     @partial(vmap, in_axes=(None, None, 0, 0, 0))

@@ -157,13 +157,15 @@ class HMC:
         #q, p, mass = jnp.copy(q), jnp.copy(p), jnp.copy(mass)
 
         q, p, weights = self.propgate(temperature, q, p, mass, keys)
+        #q, p, changes = self.propgate(temperature, q, p, mass, keys)
 
         # make new ensemble object with updated attributes
-
+        
         #ensemble = Ensemble(numDimensions, numParticles, temperature, key)
         ensemble.q = jnp.copy(q)
         ensemble.p = jnp.copy(p)
         ensemble.weights = jnp.copy(weights)
+        ensemble.weights += ensemble.initWeights
         ensemble.key = key
 
         return ensemble
@@ -189,12 +191,18 @@ class HMC:
             )
 
         acceptanceProb = jnp.minimum(weightRatio, 1)
-        q, p = jnp.where(
-            jax.random.uniform(key) < acceptanceProb,
-            jnp.array([proposedQ, proposedP]),
-            jnp.array([q, p]),
-        )
-
+        #condition function takes (u, p_accept, q, p, q_new, p_new) and returns
+        #either (q,p) or (q_new, p_new)
+        cond_fn = lambda x: jax.lax.cond( x[0] <= x[1],
+                                     lambda y: (y[4], y[5], True), # Case I - change
+                                     lambda y: (y[2], y[3], False), # Case II - no change
+                                     x )
+        #q, p = jnp.where(
+        #    jax.random.uniform(key) < acceptanceProb,
+        #    (proposedQ, proposedP),
+        #    (q, p),
+        #)
+        q, p, changed = cond_fn( (jax.random.uniform(key), acceptanceProb, q, p, proposedQ, proposedP) )
         weight = self.getWeight(q, p, mass, temperature)
 
         return (q, p, weight)

@@ -48,39 +48,30 @@ def resampleEnsemble(ensemble, Z: float, N_effective: int):
     p = jnp.zeros( ensemble.p.shape )
     weights = jnp.zeros( numParticles )
     # sort in descending order of magnitude of weights
-    # the pythonic approach has the potential to lock-up due to a lack of comparison
-    #sortedParticles = sorted(zip(ensemble.weights, zip(ensemble.q, ensemble.p) ), reverse=True )
     particleIndices = jnp.array(np.arange(numParticles))
     sortedParticleIndices = jax.lax.sort_key_val( jnp.exp(ensemble.weights) / Z, particleIndices, 0)[1]
     # copy into the new arrays - problematic since zip has broken contiguous arrays up
     q_collected = ensemble.q[sortedParticleIndices[:N_effective], :]
     p_collected = ensemble.p[sortedParticleIndices[:N_effective], :]
     w_collected = ensemble.weights[ sortedParticleIndices[:N_effective] ]
-    #for pId in range(N_effective):
-        #q = q.at[pId].set( sortedParticles[pId][1][0] ) #element 1 of the (w, (q,p) ) tuple and then element 0 of the (q,p) tuple
-        #p = p.at[pId].set( sortedParticles[pId][1][1] )
-        #q = q.at[pId].set( ensemble.q[sortedParticleIndices[pId]] )
-        #p = p.at[pId].set( ensemble.p[sortedParticleIndices[pId]] )
-        #weights = weights.at[pId].set( ensemble.weights[ sortedParticleIndices[pId] ] )
     q = jax.lax.dynamic_update_slice(q, q_collected, (0,0) )
     p = jax.lax.dynamic_update_slice(p, p_collected, (0,0) )
     weights = jax.lax.dynamic_update_slice(weights, w_collected, (0,))
+    Z_new = jnp.sum( jnp.exp(weights) )
+    cdf_updated = jnp.cumsum( jnp.exp(weights) / Z_new ) 
     #total energy
-    #E_tot = jnp.sum( ensemble.weights )
-    #E_red = jnp.sum( weights )
-    #print("Total energy pre-reduction: ", E_tot)
-    #print("Total energy post-reduction: ", E_red)
     print("Filling up the ensemble")
     #iterate over the remaining slots and draw particles from the ~original~ reduced ensemble
     for pId in range( ensemble.numParticles - N_effective ):
         u = np.random.uniform(0,1)
-        srcParticleIdx = jnp.argmin( cdf < u)
-        q = q.at[N_effective + pId].set( ensemble.q[ srcParticleIdx ] )
-        p = p.at[N_effective + pId].set( ensemble.p[ srcParticleIdx ] )
+        srcParticleIdx = jnp.argmin( cdf_updated < u)
+        q = q.at[N_effective + pId].set( q[srcParticleIdx] ) # ensemble.q[ srcParticleIdx ] )
+        p = p.at[N_effective + pId].set( p[srcParticleIdx] ) # ensemble.p[ srcParticleIdx ] )
+
     #set the ensemble data
     ensemble.q = jnp.copy(q)
     ensemble.p = jnp.copy(p)
-    ensemble.weights = -jnp.ones( ensemble.numParticles ) * jnp.log( ensemble.numParticles )
+    #ensemble.initWeights = -jnp.ones( ensemble.numParticles ) * jnp.log( ensemble.numParticles )
     return ensemble;
 
 
