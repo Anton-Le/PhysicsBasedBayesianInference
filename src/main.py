@@ -22,7 +22,8 @@ from HMC import HMC
 
 from numpyro.handlers import seed
 
-from scipy.constants import Boltzmann
+#from scipy.constants import Boltzmann
+Boltzmann = 1
 #import argument parsing module
 import argparse
 from stepSizeSelection import dtProposal

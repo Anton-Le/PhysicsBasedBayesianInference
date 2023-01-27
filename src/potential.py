@@ -201,7 +201,7 @@ class statisticalModel:
         # convert vector to dictionary
         dictPosition = self.converter.toDict(position)
         mappedPositions = self.constraint_fn(dictPosition)
-        return -1*(boltzmannConst*self.temperature)*numpyro.infer.util.log_density(
+        return -1*(boltzmannConst)*numpyro.infer.util.log_density(
             self.model,
             self.modelArgs,
             self.modelKwargs,
@@ -235,4 +235,4 @@ class statisticalModel:
             unconstrainedGradient[key] = val
         del dictGrad
         del J
-        return -1*(boltzmannConst*self.temperature)*self.converter.toArray(unconstrainedGradient)
+        return -1*(boltzmannConst)*self.converter.toArray(unconstrainedGradient)
