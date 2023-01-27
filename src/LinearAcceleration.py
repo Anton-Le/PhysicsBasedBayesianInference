@@ -24,6 +24,6 @@ def linear_accel(t, z, sigmaObs):
     t_shifted = timeShift(t)
     h = sample("h", dist.Uniform(70, 150) )
     v0 = sample("v0", dist.Uniform(20, 100) )
-    g = sample("g", dist.Normal(-5, 2) )
+    g = sample("g", dist.Normal(-6, 2) )
 
     sample("z", dist.Normal(h + v0*t_shifted + g*t_shifted**2, sigmaObs), obs=z)

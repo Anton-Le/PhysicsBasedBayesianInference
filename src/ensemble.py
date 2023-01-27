@@ -12,7 +12,8 @@ import jax.numpy as jnp
 import jax
 from jax import vmap, jit
 from scipy.stats import norm
-from scipy.constants import k as boltzmannConst
+#from scipy.constants import k as boltzmannConst
+boltzmannConst = 1
 from potential import nBodyPotential
 from functools import partial
 

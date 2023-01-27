@@ -17,7 +17,8 @@ from jax import grad, vmap, jit
 import jax.lax
 
 from scipy.stats import norm
-from scipy.constants import Boltzmann as boltzmannConst
+#from scipy.constants import Boltzmann as boltzmannConst
+boltzmannConst = 1
 from ensemble import Ensemble
 from integrator import Leapfrog, StormerVerlet
 import jax 
