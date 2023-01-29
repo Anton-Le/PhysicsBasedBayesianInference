@@ -46,6 +46,7 @@ class Ensemble:
         self.numParticles = numParticles
         self.numDimensions = numDimensions
         self.temperature = temperature
+        self.ZPE = 0.0
         self.q = jnp.zeros((numParticles, numDimensions))
         self.p = jnp.zeros((numParticles, numDimensions))
         self.mass = jnp.ones(numParticles)
@@ -100,26 +101,43 @@ class Ensemble:
         self.key, subkey = jax.random.split(self.key)
 
         pStd = jnp.sqrt(self.mass * boltzmannConst * self.temperature)
-
-        self.p = pStd[:, None] * jax.random.normal(
-            subkey,
-            shape=(
-                self.numParticles,
-                self.numDimensions,
-            ),
-        )
-
+        self.p = jax.random.multivariate_normal(subkey,
+                                                jnp.zeros(self.numDimensions),
+                                                jnp.identity(self.numDimensions)*self.temperature*boltzmannConst,
+                                                shape=(self.numParticles,) )
+        #self.p = #pStd[:, None] * jax.random.normal(
+            #subkey,
+            #shape=(
+            #    self.numParticles,
+            #    self.numDimensions,
+            #),
+        #)
         return self.p
 
     def setWeights(self, potential):
         self.weights = self._setWeights(potential, self.q, self.p, self.mass)
         return self.weights
 
+    def rescaleTemperature(self):
+        """
+        This function is intended to rescale the temperature to
+        ensure that all energies are somewhat in the same ballpark.
+        """
+        E_max = float(jnp.min( jnp.abs( self.weights ) ) )
+        self.temperature = self.temperature / E_max;
+        self.weights = self.weights * (boltzmannConst * self.temperature)
+        return self.temperature
+
+    def shiftEnergy(self):
+        """
+        Shift energies (weights). Corresponds to a reset of the (absolute)
+        energy 0 of the potential.
+        """
+        self.ZPE = float(jnp.max( self.weights )) #since we store negative energies
+        self.weights -= self.ZPE
+        return self.ZPE
+
     def getWeightedMean(self):
-        #Z = jnp.sum(self.weights)
-        #weight_times_q = self.q * self.weights[:, None]
-        #top_sum = jnp.sum(weight_times_q, axis=0)
-        #return ((top_sum / Z), Z)
         return jnp.average(self.q, axis=0, weights=jnp.exp(self.weights), returned=True)
     
     def getArithmeticMean(self):

@@ -165,8 +165,9 @@ class HMC:
         #ensemble = Ensemble(numDimensions, numParticles, temperature, key)
         ensemble.q = jnp.copy(q)
         ensemble.p = jnp.copy(p)
-        ensemble.weights = jnp.copy(weights)
-        ensemble.weights += ensemble.initWeights
+        ensemble.weights += weights
+        #ensemble.weights = jnp.copy(weights)
+        #ensemble.weights += ensemble.initWeights
         ensemble.key = key
 
         return ensemble
@@ -180,6 +181,7 @@ class HMC:
     )
     @partial(vmap, in_axes=[None, None, 0, 0, 0, 0])
     def propgate(self, temperature, q, p, mass, key):
+        energyStart = self.getWeight(q, p, mass, temperature)
         proposedQ, proposedP = self.integrator.integrate(q, p, mass)
 
         weightRatio = self.getWeightRatio(
@@ -204,6 +206,6 @@ class HMC:
         #    (q, p),
         #)
         q, p, changed = cond_fn( (jax.random.uniform(key), acceptanceProb, q, p, proposedQ, proposedP) )
-        weight = self.getWeight(q, p, mass, temperature)
+        energyEnd = self.getWeight(q, -p, mass, temperature)
 
-        return (q, p, weight)
+        return (q, p, energyEnd - energyStart)
