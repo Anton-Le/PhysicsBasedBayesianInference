@@ -16,8 +16,8 @@ from scipy.optimize import approx_fprime
 import numpyro
 import jax
 from converters import Converter
-from scipy.constants import Boltzmann as boltzmannConst
-
+#from scipy.constants import Boltzmann as boltzmannConst
+boltzmannConst = 1
 
 def harmonicPotentialND(q, springConsts):
     """
@@ -201,7 +201,7 @@ class statisticalModel:
         # convert vector to dictionary
         dictPosition = self.converter.toDict(position)
         mappedPositions = self.constraint_fn(dictPosition)
-        return -1*(boltzmannConst*self.temperature)*numpyro.infer.util.log_density(
+        return -1*(boltzmannConst)*numpyro.infer.util.log_density(
             self.model,
             self.modelArgs,
             self.modelKwargs,
@@ -226,13 +226,17 @@ class statisticalModel:
         )(mappedPositions)
         # compute the Jacobi matrix of the transform
         J = self.Jacobi(mappedPositions)
+#        print("Jacobian: ", J)
+#        for c_key in dictGrad.keys():
+#            print(c_key, " shape: ", dictGrad[c_key].shape)
+
         unconstrainedGradient = {}.fromkeys(dictGrad.keys())
         # iterate over the keys of the unconstrained
         for key in unconstrainedGradient.keys():
             val = 0.0
             for c_key in dictGrad.keys():
-                val += dictGrad[c_key] * J[c_key][key]
+                val += jnp.dot(dictGrad[c_key], J[c_key][key])
             unconstrainedGradient[key] = val
         del dictGrad
         del J
-        return -1*(boltzmannConst*self.temperature)*self.converter.toArray(unconstrainedGradient)
+        return -1*(boltzmannConst)*self.converter.toArray(unconstrainedGradient)

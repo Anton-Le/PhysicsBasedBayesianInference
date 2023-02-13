@@ -16,6 +16,7 @@ import time
 
 # Import the model and the converter
 from CoinToss import coin_toss
+from LinearAcceleration import linear_accel
 from converters import Converter
 from potential import statisticalModel
 from ensemble import Ensemble
@@ -92,18 +93,17 @@ if __name__ == "__main__":
 
         # load model data and set up the statistical model
         # Load the observed outcomes and the reference biases
-        data = json.load(open("CoinToss.data.json"))
-        modelDataDictionary = {
-            "c1": np.array(data["c1"]),
-            "c2": np.array(data["c2"]),
+        data = json.load(open("LinearMotion.data.json"))
+        modelDataDictionary = { 
+            "t": np.array(data["t"]),
+            "z": np.array(data["z"]),
+            "sigmaObs": float(data["sigmaObs"]),
         }
-        p1_reference = float(data["p1"])
-        p2_reference = float(data["p2"])
     else:
         modelDataDictionary = None
 
     modelDataDictionary = comm.bcast(modelDataDictionary, root=0)
-    model = coin_toss
+    model = linear_accel
     # CAVEAT: model arguments are an empty tuple here, subject to change!
     statModel = statisticalModel(model, (), modelDataDictionary)
 
@@ -116,8 +116,8 @@ if __name__ == "__main__":
     parser.add_argument("filePrefix", metavar="prefix", type=str, default="CT", help="Prefix to the file name.")
     inputArguments = parser.parse_args()
     #numParticles = 2**15
-    numParticles = inputArguments.numParticles // size
-    numDimensions = 2  # fetch from the model!
+    numParticles = inputArguments.numParticles // 2
+    numDimensions = statModel.converter.vectorSize  # fetch from the model!
     #temperature = 0.1 / Boltzmann
     temperature = inputArguments.temp / Boltzmann
     qStd = 1
@@ -189,17 +189,7 @@ if __name__ == "__main__":
             f"Mean parameters after HMC, transformed: \n",
             resultVector,
         )
-        p1 = resultVector[0]
-        p2 = resultVector[1]
         parameterEstimateHistory[1] = np.copy( np.array(resultVector) )
         tStop=time.time()
         outputEstimates(parameterEstimateHistory, prefix+"_HMC_"+platform, numParticles, finalTime, stepSize, temperature, 1.0, 1, tStop - tStart)
-        # Since this is Markov-Chain monte Carlo with MH proposal
-        # We may use simple averaging to obtain the parameters
-        print("Bias of coin 1: ", p1)
-        print("Absolute error: ", abs(p1 - p1_reference))
-        print("Relative error: ", abs(p1 - p1_reference) / p1_reference)
 
-        print("Bias of coin 2: ", p2)
-        print("Absolute error: ", abs(p2 - p2_reference))
-        print("Relative error: ", abs(p2 - p2_reference) / p2_reference)

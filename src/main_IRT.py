@@ -13,9 +13,11 @@ import jax.numpy as jnp
 import numpy as np
 import json
 import time
-
+sys.path.append("./irt_2pl")
 # Import the model and the converter
-from CoinToss import coin_toss
+#from CoinToss import coin_toss
+from irt_2pl import model as irt_model
+from irt_2pl import parameters_info
 from converters import Converter
 from potential import statisticalModel
 from ensemble import Ensemble
@@ -92,18 +94,17 @@ if __name__ == "__main__":
 
         # load model data and set up the statistical model
         # Load the observed outcomes and the reference biases
-        data = json.load(open("CoinToss.data.json"))
+        data = json.load(open("irt_2pl/irt_2pl.data.json"))
         modelDataDictionary = {
-            "c1": np.array(data["c1"]),
-            "c2": np.array(data["c2"]),
+            "I": int(data["I"]),
+            "J": int(data["J"]),
+            "y": np.array( data["y"], dtype=int).reshape( (data['yshape'][0], data['yshape'][1]) )
         }
-        p1_reference = float(data["p1"])
-        p2_reference = float(data["p2"])
     else:
         modelDataDictionary = None
 
     modelDataDictionary = comm.bcast(modelDataDictionary, root=0)
-    model = coin_toss
+    model = irt_model
     # CAVEAT: model arguments are an empty tuple here, subject to change!
     statModel = statisticalModel(model, (), modelDataDictionary)
 
@@ -117,7 +118,7 @@ if __name__ == "__main__":
     inputArguments = parser.parse_args()
     #numParticles = 2**15
     numParticles = inputArguments.numParticles // size
-    numDimensions = 2  # fetch from the model!
+    numDimensions = statModel.converter.vectorSize  # fetch from the model!
     #temperature = 0.1 / Boltzmann
     temperature = inputArguments.temp / Boltzmann
     qStd = 1
@@ -128,7 +129,7 @@ if __name__ == "__main__":
     prefix = inputArguments.filePrefix
     tStart = time.time()
     random_seed = 1234
-    random_seed = int( np.round(time.time() ) )
+    #random_seed = int( np.round(time.time() ) )
     rng_key = jax.random.PRNGKey(random_seed+rank)
     seed(model, rng_key)
 
@@ -189,17 +190,35 @@ if __name__ == "__main__":
             f"Mean parameters after HMC, transformed: \n",
             resultVector,
         )
-        p1 = resultVector[0]
-        p2 = resultVector[1]
-        parameterEstimateHistory[1] = np.copy( np.array(resultVector) )
+        print("Transformed: ",statModel.constraint_fn(statModel.converter.toDict(finalMean)  ) )
+        resultDict = statModel.constraint_fn(statModel.converter.toDict(finalMean)  )
+        #manual copy of the data
+        manuallyTransformedData = np.zeros_like(resultVector)
+        keysequence = ['sigma_theta', 'theta', 'sigma_a', 'a', 'mu_b','sigma_b', 'b']
+        offsetIdx = 0
+        for key in keysequence:
+            data = resultDict[key]
+            print(offsetIdx)
+            manuallyTransformedData[offsetIdx:offsetIdx + data.size] = np.copy(data)
+            offsetIdx += data.size
+
+        parameterEstimateHistory[1] = manuallyTransformedData # np.copy( np.array(resultVector) )
         tStop=time.time()
         outputEstimates(parameterEstimateHistory, prefix+"_HMC_"+platform, numParticles, finalTime, stepSize, temperature, 1.0, 1, tStop - tStart)
-        # Since this is Markov-Chain monte Carlo with MH proposal
-        # We may use simple averaging to obtain the parameters
-        print("Bias of coin 1: ", p1)
-        print("Absolute error: ", abs(p1 - p1_reference))
-        print("Relative error: ", abs(p1 - p1_reference) / p1_reference)
-
-        print("Bias of coin 2: ", p2)
-        print("Absolute error: ", abs(p2 - p2_reference))
-        print("Relative error: ", abs(p2 - p2_reference) / p2_reference)
+        # We assume that the data stored in the input file that is not part of the model data
+        # are reference parameters
+        a_ref = jnp.array(data['a'])
+        b_ref = jnp.array(data['b'])
+        theta_ref = jnp.array(data['theta'])
+        AbsErr_theta = jnp.abs(theta_ref - resultDict['theta'])
+        AbsErr_a = jnp.abs(a_ref - resultDict['a'])
+        AbsErr_b = jnp.abs(b_ref - resultDict['b'])
+        print("Max err a: ", jnp.max(AbsErr_a))
+        print("Max err b: ", jnp.max(AbsErr_b))
+        print("Max err theta: ", jnp.max(AbsErr_theta))
+        RelErr_theta = jnp.abs( AbsErr_theta / theta_ref)
+        RelErr_a = jnp.abs(AbsErr_a / a_ref)
+        RelErr_b = jnp.abs(AbsErr_b / b_ref)
+        print("Max rel. err a: ", jnp.max( RelErr_a ))
+        print("Max rel. err b: ", jnp.max( RelErr_b ))
+        print("Max rel. err theta: ", jnp.max( RelErr_theta ))
