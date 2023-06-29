@@ -122,3 +122,15 @@ test_modelGradient()
 grad = statModel.grad(parameterVector)
 
 print("Gradient computed with the model class: ", grad)
+
+# test Jacobian of the model
+dictPosition = statModel.converter.toDict(parameterVector)
+mappedPosition = statModel.constraint_fn(dictPosition)
+J = statModel.Jacobi(statModel.constraint_fn(mappedPosition))
+J_true = statModel.Jacobi(statModel.constraint_fn(dictPosition))
+
+print("Unconstrained parameters: ", parameterVector)
+print("Dict of unconstrained parameters: ", dictPosition)
+print("Constrained parameters: ", mappedPosition)
+print("Jacobian [erroneous]: ", J)
+print("Jacobian [corrected]: ", J_true)

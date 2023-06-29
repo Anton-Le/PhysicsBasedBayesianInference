@@ -14,7 +14,8 @@ sys.path.append("../")
 import numpy as np
 import jax.numpy as jnp
 from matplotlib import pyplot as plt
-#from scipy.constants import Boltzmann
+
+# from scipy.constants import Boltzmann
 Boltzmann = 1
 from jax.scipy.stats import multivariate_normal
 from ensemble import Ensemble
@@ -26,11 +27,13 @@ from potential import harmonicPotentialND
 from HMC import HMC
 
 jax.config.update("jax_enable_x64", True)
-#seed the MT1337 generator
+# seed the MT1337 generator
 np.random.seed(1234)
 
+
 def harmonicForce(q, q0, k):
-    return k*(q-q0);
+    return k * (q - q0)
+
 
 def test():
     # ensemble setup
@@ -47,12 +50,18 @@ def test():
     mean = jnp.ones(numDimensions) * 2
     mean2 = jnp.ones(numDimensions) * -3
     cov = jnp.array([[4, -3], [-3, 4]])  # random covariance matrix
-    densityFunc = lambda q: multivariate_normal.pdf(q, mean, cov=cov) + multivariate_normal.pdf(q, mean2, cov=cov)
-    springConsts = np.arange(1, 1+numDimensions)**2
+    densityFunc = lambda q: multivariate_normal.pdf(
+        q, mean, cov=cov
+    ) + multivariate_normal.pdf(q, mean2, cov=cov)
+    springConsts = np.arange(1, 1 + numDimensions) ** 2
     print("k = ", springConsts)
-    potentialFunc = lambda q: harmonicPotentialND(q - mean, springConsts) * harmonicPotentialND(q - mean2, springConsts)
-    #potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov) -multivariate_normal.logpdf(q, mean2, cov=cov)
-    analyticGradient = lambda q: harmonicForce(q, mean, springConsts) + harmonicForce(q, mean2, springConsts)
+    potentialFunc = lambda q: harmonicPotentialND(
+        q - mean, springConsts
+    ) * harmonicPotentialND(q - mean2, springConsts)
+    # potentialFunc = lambda q: -multivariate_normal.logpdf(q, mean, cov=cov) -multivariate_normal.logpdf(q, mean2, cov=cov)
+    analyticGradient = lambda q: harmonicForce(
+        q, mean, springConsts
+    ) + harmonicForce(q, mean2, springConsts)
     # HMC setup
     simulTime = 1.0
     numIterations = 30
@@ -64,22 +73,21 @@ def test():
         stepSize * numStepsPerIteration,
         stepSize,
         densityFunc,
-        potential=potentialFunc
+        potential=potentialFunc,
     )
 
     hmcJAX = HMC(
         stepSize * numStepsPerIteration,
         stepSize,
         densityFunc,
-        potential=potentialFunc
+        potential=potentialFunc,
     )
-
 
     # set positions and momenta
     qStd = 3
     ensemble.setPosition(qStd)
     ensemble.setMomentum()
-    #copy ensemble to the one rune by JAX
+    # copy ensemble to the one rune by JAX
     jaxEnsemble = ensemble
 
     hmcSamples = jnp.zeros(
@@ -100,11 +108,10 @@ def test():
     for i in range(numIterations):
         print("Step block ", i)
         ensemble = hmcObject.propagate_ensemble(ensemble)
-        jaxEnsemble=hmcJAX.propagate_ensemble(jaxEnsemble)
-        #copy particle data out
+        jaxEnsemble = hmcJAX.propagate_ensemble(jaxEnsemble)
+        # copy particle data out
         hmcSamples = hmcSamples.at[i].set(ensemble.q)
         hmcSamplesJAX = hmcSamplesJAX.at[i].set(jaxEnsemble.q)
-
 
     fig, ax = plt.subplots()
     pathCmap = plt.cm.get_cmap("Set1")
@@ -114,7 +121,7 @@ def test():
             hmcSamples[:, particleNum, 1],
             marker="*",
             color=pathCmap(particleNum),
-            label="PY: {:d}".format(particleNum + 1),
+            label="{:d}".format(particleNum + 1),
             lw=0.2,
             ls="-",
             markersize=4,
@@ -124,7 +131,7 @@ def test():
             hmcSamplesJAX[:, particleNum, 1],
             marker="o",
             color=pathCmap(particleNum),
-            #label="JAX: {:d}".format(particleNum + 1),
+            # label="JAX: {:d}".format(particleNum + 1),
             lw=0.2,
             ls=":",
             markersize=2,
@@ -136,25 +143,22 @@ def test():
     x_mesh, y_mesh = np.meshgrid(x, y)
     q = np.dstack((x_mesh, y_mesh))
     z = np.zeros_like(x_mesh)
-    #iterate
+    # iterate
     for row in range(x_mesh.shape[1]):
         for col in range(x_mesh.shape[0]):
-            z[row, col] = potentialFunc( jnp.array(q[row, col] ) )
+            z[row, col] = potentialFunc(jnp.array(q[row, col]))
 
     cmap = plt.get_cmap("jet")
-    norm = LogNorm(vmin=z.min(), vmax=z.max() )
-    contour = ax.contour(
-        x_mesh,
-        y_mesh,
-        z,
-        cmap=cmap,
-        levels=20,
-        norm=norm
-    )
+    norm = LogNorm(vmin=z.min(), vmax=z.max())
+    contour = ax.contourf(x_mesh, y_mesh, z, cmap=cmap, levels=20, norm=norm)
+    # add markers for the true values of the parameters
+    ax.scatter([2, -3], [2, -3], s=50, marker="x", color="m")
 
-    ax.set_xlabel(r"$x_{1}$")
-    ax.set_ylabel(r"$x_{2}$")
-    ax.legend(title="Particle", loc="upper right")
+    ax.set_xlabel("$x_{1}$", fontsize="x-large")
+    ax.set_ylabel("$x_{2}$", fontsize="x-large")
+    ax.tick_params(axis="both", which="major", labelsize=16)
+    ax.legend(title="Particle", loc="upper left")
+    plt.colorbar(contour)
     plt.show()
 
 
