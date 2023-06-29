@@ -16,8 +16,10 @@ from scipy.optimize import approx_fprime
 import numpyro
 import jax
 from converters import Converter
-#from scipy.constants import Boltzmann as boltzmannConst
+
+# from scipy.constants import Boltzmann as boltzmannConst
 boltzmannConst = 1
+
 
 def harmonicPotentialND(q, springConsts):
     """
@@ -28,7 +30,7 @@ def harmonicPotentialND(q, springConsts):
         springConsts (ndarray): numDimensions array of spring constants
     """
 
-    return 0.5 * jnp.dot(springConsts, q ** 2)
+    return 0.5 * jnp.dot(springConsts, q**2)
 
 
 def getAccelNBody(q, mass, i):
@@ -178,7 +180,9 @@ def statisticalModelGradient(
 
 
 class statisticalModel:
-    def __init__(self, model, modelArgs, modelKwargs, temperature=1./boltzmannConst):
+    def __init__(
+        self, model, modelArgs, modelKwargs, temperature=1.0 / boltzmannConst
+    ):
         self.converter = Converter(model, modelArgs, modelKwargs)
         self.modelArgs = modelArgs
         self.modelKwargs = modelKwargs
@@ -201,12 +205,16 @@ class statisticalModel:
         # convert vector to dictionary
         dictPosition = self.converter.toDict(position)
         mappedPositions = self.constraint_fn(dictPosition)
-        return -1*(boltzmannConst)*numpyro.infer.util.log_density(
-            self.model,
-            self.modelArgs,
-            self.modelKwargs,
-            mappedPositions,
-        )[0]
+        return (
+            -1
+            * (boltzmannConst)
+            * numpyro.infer.util.log_density(
+                self.model,
+                self.modelArgs,
+                self.modelKwargs,
+                mappedPositions,
+            )[0]
+        )
 
     def grad(self, position):
         """
@@ -217,7 +225,7 @@ class statisticalModel:
         # convert vector to dictionary
         dictPosition = self.converter.toDict(position)
         mappedPositions = self.constraint_fn(dictPosition)
-        del dictPosition
+        # del dictPosition
         # compute the gradient at the mapped coordinates
         dictGrad = jax.grad(
             lambda x: numpyro.infer.util.log_density(
@@ -225,14 +233,19 @@ class statisticalModel:
             )[0]
         )(mappedPositions)
         # compute the Jacobi matrix of the transform
-        J = self.Jacobi(mappedPositions)
+        # J = self.Jacobi(mappedPositions) #BUG! Jacobi matrix to be evaluated on the source domain!
+        J = self.Jacobi(dictPosition)
         unconstrainedGradient = {}.fromkeys(dictGrad.keys())
         # iterate over the keys of the unconstrained
         for key in unconstrainedGradient.keys():
             val = 0.0
             for c_key in dictGrad.keys():
-                val += dictGrad[c_key] * J[c_key][key]
+                val += jnp.dot(J[c_key][key], dictGrad[c_key])
             unconstrainedGradient[key] = val
         del dictGrad
         del J
-        return -1*(boltzmannConst)*self.converter.toArray(unconstrainedGradient)
+        return (
+            -1
+            * (boltzmannConst)
+            * self.converter.toArray(unconstrainedGradient)
+        )
