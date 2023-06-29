@@ -82,11 +82,10 @@ class Ensemble:
             self.q = positionFunc(subkey, shape)
 
         else:
-            self.q = qStd * jax.random.normal(
-                subkey,
-                shape=shape,
-            )
-
+            self.q = jax.random.multivariate_normal(subkey,
+                                                jnp.zeros(self.numDimensions),
+                                                jnp.identity(self.numDimensions)*qStd**2,
+                                                shape=(self.numParticles,) )
         return self.q
 
     def setMomentum(self):
@@ -100,18 +99,18 @@ class Ensemble:
         """
         self.key, subkey = jax.random.split(self.key)
 
-        pStd = jnp.sqrt(self.mass * boltzmannConst * self.temperature)
-        self.p = jax.random.multivariate_normal(subkey,
-                                                jnp.zeros(self.numDimensions),
-                                                jnp.identity(self.numDimensions)*self.temperature*boltzmannConst,
-                                                shape=(self.numParticles,) )
-        #self.p = #pStd[:, None] * jax.random.normal(
-            #subkey,
-            #shape=(
-            #    self.numParticles,
-            #    self.numDimensions,
-            #),
-        #)
+        pStd = jnp.sqrt( boltzmannConst * self.temperature)
+        #self.p = 1/pStd**3 * jax.random.multivariate_normal(subkey,
+        #                                        jnp.zeros(self.numDimensions),
+        #                                        jnp.identity(self.numDimensions)*self.temperature*boltzmannConst,
+        #                                        shape=(self.numParticles,) )
+        self.p = jax.random.normal(
+            subkey,
+            shape=(
+                self.numParticles,
+                self.numDimensions,
+            ),
+        )
         return self.p
 
     def setWeights(self, potential):

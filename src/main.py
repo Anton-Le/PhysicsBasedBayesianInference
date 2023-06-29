@@ -38,7 +38,7 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=1"
 #temporary location for the ESS function
 
 def effectiveSampleSize(weights: jnp.array, Z: float):
-    return 1.0/ jnp.sum( ( jnp.exp(weights) /Z ) **2)
+    return np.ceil(1.0/ jnp.sum( ( jnp.exp(weights) /Z ) **2))
 
 def ensembleFillFunction(idx, val):
     """
@@ -66,7 +66,7 @@ def resampleEnsemble(ensemble, Z: float, N_effective: int):
     # sort in descending order of magnitude of weights
     particleIndices = jnp.array(np.arange(numParticles))
     sortedParticleIndices = jax.lax.sort_key_val( jnp.exp(ensemble.weights) / Z, particleIndices, 0)[1]
-    # copy into the new arrays - problematic since zip has broken contiguous arrays up
+    # copy into the new arrays
     q_collected = ensemble.q[sortedParticleIndices[:N_effective], :]
     p_collected = ensemble.p[sortedParticleIndices[:N_effective], :]
     w_collected = ensemble.weights[ sortedParticleIndices[:N_effective] ]
@@ -75,8 +75,8 @@ def resampleEnsemble(ensemble, Z: float, N_effective: int):
     #print("Collected/sorted weights: ", w_collected)
     #print("Associated positions: ", q_collected)
     weights = jax.lax.dynamic_update_slice(weights, w_collected, (0,))
-    Z_new = jnp.sum( jnp.exp(weights) )
-    cdf_updated = jnp.cumsum( jnp.exp(weights) / Z_new ) 
+    Z_new = jnp.sum( jnp.exp(w_collected) )
+    cdf_updated = jnp.cumsum( jnp.exp(w_collected) / Z_new ) 
     #total energy
     print("Filling up the ensemble")
     key, subkey = jax.random.split(ensemble.key)
@@ -105,7 +105,7 @@ def outputEstimates(estimates: np.array, filenamePrefix: str, Nparticles: int, t
 
 if __name__ == "__main__":
     # select the platform
-    platform = "gpu"
+    platform = "cpu"
 
     numpyro.set_platform(platform)
     # Print run-time configuration infromation
@@ -156,8 +156,8 @@ if __name__ == "__main__":
     #Define the degeneracy threshold of particles
     N_threshold = int( np.rint(numParticles * particleFraction) )
     tStart = time.time()
-    #random_seed = 1234
-    random_seed = int( np.round(time.time() ) )
+    random_seed = 1234
+    #random_seed = int( np.round(time.time() ) )
     rng_key = jax.random.PRNGKey(random_seed)
     seed(model, rng_key)
 
@@ -176,6 +176,7 @@ if __name__ == "__main__":
     ensemble.setPosition(qStd)
     ensemble.setMomentum()
     ensemble.setWeights(statModel.potential)
+    print("initial energies: ", ensemble.weights)
     print(ensemble.p.shape)
     # compute initial mean values
     initialEstimate, initialZ = ensemble.getWeightedMean()
@@ -184,7 +185,7 @@ if __name__ == "__main__":
     avgDt = jnp.average(dtSizes)
     
     print(f"Mean parameters after initialisation \n", initialEstimate)
-    print("Averaged step size: ", avgDt)
+    #print("Averaged step size: ", avgDt)
     print(
         f"Mean parameters after initialisation, transformed: \n",
         statModel.converter.toArray(
@@ -195,13 +196,18 @@ if __name__ == "__main__":
     # HMC algorithm
     hmcObject = HMC(
         finalTime,
-        float(avgDt),
+        stepSize,
+        #float(avgDt),
         initialPositionDensityFunc,
         potential=statModel.potential,
         gradient=statModel.grad
     )
     # SMC loop
     parameterEstimateHistory = np.zeros( (tSteps, ensemble.numDimensions) )
+    movingMeanParameter = np.zeros( ensemble.numDimensions )
+    energyHistory = np.zeros( tSteps )
+    movingPartitionFunction = 1.0;
+    movingParameterEstimateHistory = np.zeros( (tSteps, ensemble.numDimensions) )
     #jax.profiler.start_trace("/mnt/TGT/JAXProfiles")
     for smcStep in range(tSteps):
         print("[SMC loop] step ", smcStep)
@@ -211,6 +217,7 @@ if __name__ == "__main__":
         #print("Weights before rescaling: ", ensemble.weights)
         # rescale the temperature to ensure 'humane' probabilities
         E0 = ensemble.shiftEnergy()
+        energyHistory[smcStep] = E0
         #print("Temperature after rescaling: ", ensemble.temperature)
         print("Zero-point energy: ", E0)
         #print("Weights after rescaling: ", ensemble.weights)
@@ -222,7 +229,7 @@ if __name__ == "__main__":
         print("Effective sample size: ", N_effective)
 
         # Print the HMC estimate
-        print("Arithmetic mean parameter: ", meanParameter)
+        print("Weighted mean parameter: ", meanParameter)
         resultVector = statModel.converter.toArray(
                 statModel.constraint_fn(statModel.converter.toDict(meanParameter))
             )
@@ -230,21 +237,32 @@ if __name__ == "__main__":
                 f"Mean parameters after HMC, transformed: \n",
                 resultVector,
         )
+        alpha = (1.0 if smcStep==0 else np.exp( -E0/(Boltzmann*ensemble.temperature))/movingPartitionFunction)
+        movingPartitionFunction = (np.exp( -E0/(Boltzmann*ensemble.temperature)) if smcStep==0 else movingPartitionFunction+np.exp( -E0/(Boltzmann*ensemble.temperature)))
         #copy estimates into the history
         parameterEstimateHistory[smcStep] = np.copy( np.array(resultVector) )
+        movingMeanParameter += alpha * np.array(resultVector)
+        movingMeanParameter *= (1/(1 + alpha) if smcStep>0 else 1.0)
+        movingParameterEstimateHistory[smcStep] = np.copy(movingMeanParameter)
+        print( "Moving-mean parameter: \n", movingMeanParameter)
         # Threshold, resample, perform next step SMC sampling
         if N_effective <= N_threshold:
             print("Resampling")
             ensemble = resampleEnsemble(ensemble, Z[0], int(np.rint(N_effective)) )
             ensemble.setMomentum()
         #SMC loop END
-    
+    Emin = np.min(energyHistory)
+    dE = energyHistory - Emin
+    temporalWeights = np.exp(-dE/(Boltzmann * temperature) ) / np.sum( np.exp(-energyHistory/(Boltzmann * temperature) ) )
+    timeAvgParam = np.average(parameterEstimateHistory, axis=0, weights =temporalWeights)
+    print("Different time-average: \n", timeAvgParam)
     #jax.profiler.stop_trace()
     #final approximation
     #ensemble.shiftEnergy()
     #print("On exit, energies: ", ensemble.weights)
     tStop=time.time()
     outputEstimates(parameterEstimateHistory, prefix+platform, numParticles, finalTime, float(avgDt), temperature, particleFraction, tSteps, tStop - tStart)
+    outputEstimates(movingParameterEstimateHistory, prefix+platform+"_moving_", numParticles, finalTime, float(avgDt), temperature, particleFraction, tSteps, tStop - tStart)
     #meanParameter, Z = ensemble.getWeightedMean()
     #print("Effective sample size: ", N_effective)
     # Print the HMC estimate
@@ -269,6 +287,21 @@ if __name__ == "__main__":
     print("Analytic bias of coin 2: ", p2_reference)
     print("Absolute error: ", abs(p2 - p2_reference))
     print("Relative error: ", abs(p2 - p2_reference) / p2_reference)
+
+    p1 = movingParameterEstimateHistory[-1,0]
+    p2 = movingParameterEstimateHistory[-1,1]
+    # Since this is Markov-Chain monte Carlo with MH proposal
+    # We may use simple averaging to obtain the parameters
+    print("Bias of coin 1: ", p1)
+    print("Analytic bias of coin 1: ", p1_reference)
+    print("Absolute error: ", abs(p1 - p1_reference))
+    print("Relative error: ", abs(p1 - p1_reference) / p1_reference)
+
+    print("Bias of coin 2: ", p2)
+    print("Analytic bias of coin 2: ", p2_reference)
+    print("Absolute error: ", abs(p2 - p2_reference))
+    print("Relative error: ", abs(p2 - p2_reference) / p2_reference)
+
     #print("Obtained samples: \n", ensemble.q)
     meanParameter, Z = ensemble.getWeightedMean()
     print(f"Mean parameters after HMC: \n", meanParameter)
