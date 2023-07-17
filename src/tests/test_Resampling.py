@@ -96,13 +96,13 @@ def test_CoreResampling():
     weights_local = generateWeights( rank )
     q_local = generateVectors( rank )
     Nparticles_global = 12
-    Nparticles_local = 4
+    particleDim, Nparticles_local = q_local.shape
     Nproc = 3
     # Step 1.5 - sort particles and weights in descending order
     sortedIndices = np.argsort( weights_local )
     reversedSortedIndices = sortedIndices[ ::-1 ]
     weights_local = weights_local[ reversedSortedIndices ]
-    q_local = q_local[ reversedSortedIndices, : ]
+    q_local = q_local[:, reversedSortedIndices]
 
     # Step 2 - gather the local weights onto all processes
     weights_global, _ = mpi4jax.allgather( weights_local )
@@ -110,62 +110,33 @@ def test_CoreResampling():
     cdf = np.cumsum( weights_global / np.sum(weights_global) )
     # Step 4 - define an array of 'random numbers'
     #sufficient to resample all local particles.
-    resamplingRNs = None
+
+    resamplingRNs = np.zeros(Nparticles_local)
     if rank == 0:
-        resamplingRNs = np.random.uniform(0,1, size=Nparticles_local)
+        resamplingRNs = np.array([1/6, 1/2, 3/4, 1/4 ])
+
     # Step 5 - broadcast said array.
-    resamplingRNs, _ = mpi4jax.bcast(resamplingRNs, 0)
+    resamplingRNs_global, _ = mpi4jax.bcast(resamplingRNs, 0)
     # Step 6 - every process performs CDF inversion
     newSample_globalIndices = np.zeros(Nparticles_local, dtype=int)
     for idx in range(Nparticles_local):
-        newSample_globalIndices[idx] = np.argmax( resamplingRNs[idx] <= cdf )
+        newSample_globalIndices[idx] = np.argmax( resamplingRNs_global[idx] <= cdf )
     # Step 7 - determine the process indices of the resampled particles
     processIndices = newSample_globalIndices // Nparticles_local
     # Step 8 - count the number of particles from each process
     particlesFromProcess = np.bincount( processIndices, minlength=Nproc)
     # Step 9 - Gather particles unto all - into a flat buffer
-    # TODO: Check functionality separately!
-    sendbuf = q_local[ :particlesFromProcess[rank], :]
-    sendbuf = sendbuf.flatten()
-    recvbuf = np.empty( Nparticles_local * q_local.shape[1], dtype=q_local.dtype )
-    recvDisplacements = np.zeros( Nparticles_local, dtype=int)
-    for pId in range(1, Nparticles_local):
-            recvDisplacements[pId] = particlesFromProcess[pId - 1]
-    recvDisplacements = np.cumsum(recvDisplacements)
-    comm.Allgatherv( sendbuf=(sendbuf, particlesFromProcess * Nparticles_local, MPI.DOUBLE),\
-                     recvbuf=(recvbuf, particlesFromProcess * Nparticles_local, recvDisplacements, MPI.DOUBLE))
+    sendbuf = np.copy( q_local[ :, :particlesFromProcess[rank]] )
+    sendbuf = sendbuf.flatten(order='F')
+    recvcounts = particleDim * particlesFromProcess
+    recvbuf = np.empty( np.sum(recvcounts), dtype=q_local.dtype )
+
+    comm.Allgatherv( sendbuf=(sendbuf, recvcounts[rank], MPI.DOUBLE),\
+                     recvbuf=(recvbuf, recvcounts, MPI.DOUBLE))
+    receivedVectors = recvbuf.reshape( (np.sum(particlesFromProcess), particleDim)  )
+    if rank == 0:
+        print("Received vectors: \n", receivedVectors.T)
     return
-
-
-
-def test_gatherv():
-    """
-    Test of the MPI Gatherv function for the collection of
-    a subset of positions and momenta from the workers.
-    Since MPI4JAX does not provide this function we
-    need to fall back to MPI4Py.
-    """
-    #generate the data
-    w_local = generateWeights( rank )
-    q_local = generateVectors( rank )
-
-    particleDim, Nparticles = q_local.shape
-    #for now we collect only to root
-    root = 0
-    #receive counts - assuming flattened arrays
-    sendbuf = w_local
-    recvcounts = np.array([1, 3, 2], dtype=int)
-    sendcount = 2
-    sendcounts = np.ones(3) * len(w_local)
-    senddisplacements = np.array([0, 1, 2])
-    recvdisplacements = np.array([0, 1, 3])
-    recvbuf = np.empty( np.sum(recvcounts), dtype=float )
-
-    comm.Gatherv(sendbuf=(sendbuf, recvcounts[rank], MPI.DOUBLE), recvbuf=(recvbuf, recvcounts, MPI.DOUBLE), root=root)
-    if rank == root:
-        print("Gathered array: ", recvbuf)
-    return
-
 
 def test_gathervVector():
     """
@@ -214,3 +185,7 @@ if __name__=='__main__':
     if rank == 0:
         print("Testing Gatherv for vectors")
     test_gathervVector();
+    mpi4jax.barrier();
+    if rank == 0:
+        print("Testing Allgatherv")
+    test_CoreResampling();
