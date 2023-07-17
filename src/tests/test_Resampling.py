@@ -166,9 +166,51 @@ def test_gatherv():
         print("Gathered array: ", recvbuf)
     return
 
+
+def test_gathervVector():
+    """
+    Simple test of MPI Gatherv with multidimensional flattened arrays as inputs.
+
+    """
+    #generate the data
+    q_local = generateVectors( rank )
+    particleDim, Nparticles = q_local.shape
+
+    #for now we collect only to root
+    root = 0
+    #receive counts of particles
+    recvParticleCounts = np.array([2, 0, 3])
+    # copy the first particles of a process 
+    # to the buffer and flatten buffer using Fortran order (col-major)
+    sendbuf = np.copy( q_local[:, :recvParticleCounts[rank]] )
+    sendbuf = sendbuf.flatten(order='F')
+    # recvCounts in numbers of elementsof the fundamental datatype
+    recvcounts = recvParticleCounts * particleDim
+    recvbuf = np.empty( np.sum(recvcounts), dtype=float )
+    # Perform the gather operation
+    comm.Gatherv(sendbuf=(sendbuf, recvcounts[rank], MPI.DOUBLE), recvbuf=(recvbuf, recvcounts, MPI.DOUBLE), root=root)
+
+    if rank == root:
+        print("Sendbuf (pre-reshaping):\n ",  q_local[:, :recvParticleCounts[rank]])
+        print("Sendbuf (post-reshaping):\n ", sendbuf)
+        print("Recvcounts: ", recvcounts)
+        print("Gathered array: \n", recvbuf)
+        #reshape into proper shape
+        receivedVectors = recvbuf.reshape( (np.sum(recvParticleCounts), particleDim) )
+        print("Gathered vectors: \n", receivedVectors.T)
+        #generate reference:
+        q_3 = generateVectors( 2 )
+        referenceSolution = np.zeros( (particleDim, np.sum(recvParticleCounts) ) )
+        referenceSolution[:, :2] = q_local[:,:2]
+        referenceSolution[:, 2:] = q_3[:,:3]
+        print("Reference solution:\n ", referenceSolution)
+        assert np.allclose(receivedVectors.T, referenceSolution), "The received data does not match the reference solution!"
+
+    return
+ 
 if __name__=='__main__':
     platform = "cpu"
     numpyro.set_platform(platform)
-    if rank==0:
-        print("Testing GATHERV with vectors")
-    test_gatherv();
+    if rank == 0:
+        print("Testing Gatherv for vectors")
+    test_gathervVector();
